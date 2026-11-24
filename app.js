@@ -178,11 +178,13 @@ function setDoc(k){ S.onb.docs[k]=!S.onb.docs[k]; render(); }
 
 function vOnb(){
   const o=S.onb, q=seq(), i=q.indexOf(o.step), canBack=i>0||o.only;
+  if(o.step==='splash') return `<div class="sp"><div class="brand"><i></i>RideLink</div>
+    <h2>Share the road.<br>Split the cost.</h2><p>Post a trip or join one. Agree the price. Travel with verified people.</p>
+    ${mapBox(mapSVG({routes:[{a:'abuja',b:'kaduna',sel:true}],car:.42}),'Abuja to Kaduna')}
+    <div class="spbtn"><button class="btn" onclick="nextStep()">Get started</button><button class="skip" onclick="skipOnb()">Skip sign-up for the demo</button></div></div>`;
   const bar = o.step==='splash'||o.step==='review'||o.step==='done' ? '' :
     `<div class="top"><button class="back" style="margin:0" onclick="prevStep()" aria-label="Back">${ic('back',18)}</button><div class="steps">${q.filter(s=>!['splash','review','done'].includes(s)).map((s,n)=>`<i class="${q.indexOf(s)<=i?'on':''}"></i>`).join('')}</div><button class="skip" onclick="skipOnb()">Skip</button></div>`;
   let b='';
-  if(o.step==='splash') b=`<div class="splash"><div class="name" style="font-family:var(--display);font-size:16px">RideLink</div><h2>Share the road. Split the cost.</h2><p>Post a trip or join one. Agree the price.</p>${mapBox(mapSVG({routes:[{a:'abuja',b:'kaduna',sel:true}],car:.42}),'Abuja to Kaduna')}</div>
-    <button class="btn" onclick="nextStep()">Get started</button><button class="skip" style="display:block;margin:12px auto 0" onclick="skipOnb()">Skip sign-up for the demo</button>`;
   if(o.step==='role') b=`<h2>How will you use RideLink?</h2><p class="sub">Pick one or both. You can switch any time from the top bar.</p>
     ${[['passenger','Passenger','Find a ride and negotiate a seat','profile'],['driver','Driver','Post trips and earn from empty seats','car']].map(([k,t,d,icn])=>`<button class="role" aria-pressed="${o.roles.includes(k)}" onclick="toggleRole('${k}')"><span class="ico">${ic(icn,20)}</span><div><div class="name">${t}</div><div class="meta">${d}</div></div></button>`).join('')}
     <button class="btn" style="margin-top:8px" ${o.roles.length?'':'disabled'} onclick="nextStep()">Continue</button>`;
@@ -457,7 +459,7 @@ function renderTabs(){
 }
 const VIEWS = {find:vFind,detail:vDetail,thread:vThread,confirmed:vConfirmed,trips:vTrips,track:vTrack,profile:vProfile,post:vPost,dTrips:vDTrips};
 function render(){
-  const ph=$('#phone'); ph.dataset.mode=S.mode; ph.classList.toggle('onb',S.onbOn);
+  const ph=$('#phone'); ph.dataset.mode=S.mode; ph.classList.toggle('onb',S.onbOn); ph.classList.toggle('splash',S.onbOn&&S.onb.step==='splash');
   const sc=$('#screen'), top=sc.scrollTop;
   sc.innerHTML=S.onbOn?vOnb():(VIEWS[S.view]||vFind)(); sc.scrollTop=top;
   if(!S.onbOn){ renderHeader(); renderTabs(); }
@@ -469,7 +471,7 @@ function render(){
 /* ---------- device preview (iPhone, folded, unfolded) ---------- */
 const DEVICES = {iphone:{n:'iPhone',w:390,h:844},cover:{n:'Fold · folded',w:280,h:653},open:{n:'Fold · open',w:700,h:760}};
 function renderDevbar(){ $('#devbar').innerHTML=Object.entries(DEVICES).map(([k,d])=>`<button aria-pressed="${S.dev===k}" onclick="setDevice('${k}')">${d.n}</button>`).join(''); }
-function setDevice(k){ S.dev=k; const d=DEVICES[k], p=$('#phone'); p.className='phone dev-'+k+(S.onbOn?' onb':''); p.style.width=d.w+'px'; p.style.height=d.h+'px'; renderDevbar(); fit(); render(); }
+function setDevice(k){ S.dev=k; const d=DEVICES[k], p=$('#phone'); p.className='phone dev-'+k+(S.onbOn?' onb':'')+(S.onbOn&&S.onb.step==='splash'?' splash':''); p.style.width=d.w+'px'; p.style.height=d.h+'px'; renderDevbar(); fit(); render(); }
 function fit(){
   const bare=innerWidth<=520||matchMedia('(pointer:coarse)').matches; document.body.classList.toggle('bare',bare);
   const d=DEVICES[S.dev], p=$('#phone');
