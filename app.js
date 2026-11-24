@@ -296,7 +296,7 @@ const tile = (k,title) => { const v=S.onb.docs[k];
 
 function vOnb(){
   const o=S.onb, q=seq(), i=q.indexOf(o.step), kyc=o.step==='kycId'||o.step==='kycCar';
-  if(o.step==='splash') return `<div class="sp"><div class="brand"><i></i>RideLink</div>
+  if(o.step==='splash') return `<div class="sp"><div class="brand"><img src="assets/logo-white.png" alt="RideLink"></div>
     <h2>Share the road.<br>Split the cost.</h2><p>Post a trip or join one. Agree the price. Travel with verified people.</p>
     ${mapBox(mapSVG({routes:[{a:'abuja',b:'kaduna',sel:true}],car:.42}),'Abuja to Kaduna')}
     <div class="spbtn"><button class="btn" onclick="nextStep()">Get started</button><button class="skip" onclick="skipOnb()">Skip sign-up for the demo</button></div></div>`;
@@ -668,7 +668,7 @@ function submitRate(bid){ const b=S.bookings.find(x=>x.id===bid); if(b) b.rated=
 
 /* ---------- shell: header, tabs, render ---------- */
 function renderHeader(){
-  $('#hdr').innerHTML=`<div class="logo"><i></i><h1>RideLink</h1></div>
+  $('#hdr').innerHTML=`<div class="logo"><img class="full" src="assets/logo.png" alt="RideLink"><img class="mark" src="assets/logo-mark.png" alt="RideLink"></div>
   <div class="seg" role="tablist" aria-label="Mode" data-m="${S.mode}"><span class="thumb"></span>
     <button role="tab" aria-selected="${S.mode==='passenger'}" onclick="setMode('passenger')">${ic('profile',14)}<span class="l1">Passenger</span><span class="l2">Ride</span></button>
     <button role="tab" aria-selected="${S.mode==='driver'}" onclick="setMode('driver')">${ic('car',14)}<span class="l1">Driver</span><span class="l2">Drive</span></button></div>
@@ -716,3 +716,8 @@ addEventListener('pointerup',()=>{ if(drag){ drag.r.classList.remove('drag'); if
 document.addEventListener('click',e=>{ if(Date.now()<dragUntil){ e.stopPropagation(); e.preventDefault(); } },true);
 
 setDevice('iphone');
+
+/* boot screen: the logo shows first on every refresh */
+(()=>{ const b=document.getElementById('boot'); if(!b) return; const t0=performance.now();
+  const hide=()=>setTimeout(()=>{ b.classList.add('out'); setTimeout(()=>b.remove(),450); },Math.max(0,1400-(performance.now()-t0)));
+  document.readyState==='complete'?hide():addEventListener('load',hide,{once:true}); setTimeout(hide,4000); })();

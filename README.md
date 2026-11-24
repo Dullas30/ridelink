@@ -9,6 +9,7 @@ Plain HTML, CSS and JavaScript. No build step.
 ## Files
 - index.html  markup and the device-preview frame
 - config.js   settings (Google Maps key)
+- assets/     logo files (transparent PNG; white versions for green backgrounds)
 - style.css   styles (container queries handle folded, phone and unfolded widths)
 - app.js      state, screens, mock negotiation, sign-up and driver checks, maps
 
