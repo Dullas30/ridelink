@@ -78,6 +78,16 @@ const CITIES = {
 const KM = (a,b) => { const A=CITIES[a],B=CITIES[b],d=Math.PI/180; const dl=(B.lat-A.lat)*d, dn=(B.lon-A.lon)*d;
   const x=Math.sin(dl/2)**2+Math.cos(A.lat*d)*Math.cos(B.lat*d)*Math.sin(dn/2)**2; return 2*6371*Math.asin(Math.sqrt(x))*1.25; };
 const MINS = (a,b) => Math.round(KM(a,b)/75*60);
+/* Abuja districts (we launch in Abuja first) */
+const AREAS = {'Kubwa':[9.155,7.322],'Gwarinpa':[9.105,7.405],'Wuse 2':[9.079,7.474],'Wuse':[9.064,7.466],'Central Business District':[9.054,7.489],'Maitama':[9.088,7.497],'Garki':[9.033,7.489],
+  'Lugbe':[8.977,7.360],'Nyanya':[9.010,7.570],'Jabi':[9.072,7.428],'Asokoro':[9.042,7.520],'Lokogoma':[8.990,7.450],'Life Camp':[9.080,7.392],'Utako':[9.071,7.441],'Area 1':[9.034,7.470],'Karu':[9.010,7.590],'Dutse':[9.140,7.400],'Apo':[8.985,7.497],'Berger':[9.060,7.448],'Banex':[9.083,7.468],'Airport':[9.007,7.263]};
+const areaLL = name => { const k=Object.keys(AREAS).find(a=>String(name||'').toLowerCase().includes(a.toLowerCase())); return k?{lat:AREAS[k][0],lng:AREAS[k][1]}:null; };
+const hav = (A,B) => { const d=Math.PI/180, x=(B.lat-A.lat)*d, y=(B.lng-A.lng)*d, h=Math.sin(x/2)**2+Math.cos(A.lat*d)*Math.cos(B.lat*d)*Math.sin(y/2)**2; return 12742*Math.asin(Math.sqrt(h)); };
+const endLL = (side,c,area) => areaLL(area)||(c&&CITIES[c]?{lat:CITIES[c].lat,lng:CITIES[c].lon}:null);
+const routeKm = (c1,a1,c2,a2) => { if(c1!==c2) return KM(c1,c2); const A=endLL(0,c1,a1),B=endLL(1,c2,a2); return A&&B?Math.max(1,hav(A,B)*1.35):8; };
+const routeMins = (c1,a1,c2,a2) => { const k=routeKm(c1,a1,c2,a2); return Math.round(c1===c2?k/35*60+5:k/75*60); };
+const tKm = t => routeKm(t.fromC,t.from.split(' · ')[1],t.toC,t.to.split(' · ')[1]);
+const tMins = t => routeMins(t.fromC,t.from.split(' · ')[1],t.toC,t.to.split(' · ')[1]);
 const dur = m => m<60 ? m+' min' : Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m';
 const isWide = () => ($('#phone')||{clientWidth:390}).clientWidth >= 600;
 
@@ -89,16 +99,22 @@ const S = {
     notif:true,autoShare:true,places:{home:'Wuse 2, Abuja',work:'Central Business District, Abuja'},
     pStats:{trips:23,rating:4.9,saved:18400},dStats:{trips:42,rating:4.9,accept:96},bank:'GTBank · •••• 4821',offersOn:true},
   onb:{step:'splash',only:null,roles:['passenger'],phone:'',name:'',nin:'',licNo:'',skipped:false,docs:{lic:null,selfie:null,carFront:null,carBack:null,carIn:null,papers:null},veh:{make:'',model:'',color:'',plate:'',seats:3}},
-  from:'Abuja', to:'Kaduna', fromTxt:'', toTxt:'', fromPl:null, toPl:null, fromTyped:false, loc:null, filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
+  from:'Abuja', to:'', fromTxt:'', toTxt:'', fromPl:null, toPl:null, fromTyped:false, loc:null, filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
   ptab:'up', dtab:'up', track:null, lastBooking:null, nextId:100,
   trips:[
+    {id:21,driver:'Chidi Nwosu',rating:4.9,count:156,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Central Business District',when:'Today · 7:15 AM',seats:3,cap:4,price:1500,neg:true,boosted:true,car:'Toyota Corolla, white',rules:['AC','Quiet ride','Set pickup points']},
+    {id:22,driver:'Zainab Yusuf',rating:4.8,count:73,fromC:'abuja',toC:'abuja',from:'Abuja · Gwarinpa',to:'Abuja · Wuse 2',when:'Today · 7:45 AM',seats:2,cap:3,price:1200,neg:true,car:'Honda Civic, grey',rules:['AC','Women only']},
+    {id:23,driver:'Emeka Obi',rating:4.7,count:58,fromC:'abuja',toC:'abuja',from:'Abuja · Lugbe',to:'Abuja · Maitama',when:'Today · 8:00 AM',seats:3,cap:4,price:1800,neg:true,car:'Toyota Camry, black',rules:['AC','Luggage ok']},
+    {id:24,driver:'Aliyu Sani',rating:4.9,count:201,fromC:'abuja',toC:'abuja',from:'Abuja · Nyanya',to:'Abuja · Garki',when:'Today · 6:50 AM',seats:2,cap:4,price:1000,neg:false,car:'Kia Rio, red',rules:['No smoking']},
+    {id:25,driver:'Grace Adamu',rating:4.8,count:94,fromC:'abuja',toC:'abuja',from:'Abuja · Jabi',to:'Abuja · Asokoro',when:'Today · 5:30 PM',seats:3,cap:3,price:1300,neg:true,car:'Hyundai Elantra, blue',rules:['AC','Quiet ride']},
+    {id:26,driver:'Musa Bello',rating:4.6,count:37,fromC:'abuja',toC:'abuja',from:'Abuja · Lokogoma',to:'Abuja · Utako',when:'Tomorrow · 7:30 AM',seats:2,cap:3,price:1100,neg:true,car:'Toyota Corolla, silver',rules:['AC','Luggage ok']},
     {id:1,driver:'Musa Abdullahi',rating:4.9,count:128,fromC:'abuja',toC:'kaduna',from:'Abuja · Wuse 2',to:'Kaduna · Barnawa',when:'Tomorrow · 7:00 AM',seats:3,cap:3,price:6500,neg:true,boosted:true,car:'Toyota Camry, silver',rules:['AC','Luggage ok','No smoking']},
     {id:2,driver:'Amina Bello',rating:4.8,count:64,fromC:'abuja',toC:'kaduna',from:'Abuja · Gwarinpa',to:'Kaduna · Sabon Tasha',when:'Tomorrow · 8:30 AM',seats:2,cap:3,price:7000,neg:true,car:'Honda Accord, black',rules:['AC','Women only','Quiet ride']},
     {id:3,driver:'Tunde Okafor',rating:4.7,count:41,fromC:'abuja',toC:'lokoja',from:'Abuja · Lugbe',to:'Lokoja · Ganaja',when:'Today · 4:00 PM',seats:2,cap:3,price:5000,neg:true,car:'Toyota Corolla, white',rules:['AC','Luggage ok','Set pickup points']},
     {id:4,driver:'Seun Adeyemi',rating:4.9,count:210,fromC:'lagos',toC:'ibadan',from:'Lagos · Ikeja',to:'Ibadan · Challenge',when:'Today · 5:30 PM',seats:2,cap:3,price:4500,neg:true,car:'Lexus RX, grey',rules:['AC','No smoking','No pets']},
     {id:5,driver:'Ibrahim Lawal',rating:4.6,count:19,fromC:'abuja',toC:'kaduna',from:'Abuja · Kubwa',to:'Kaduna · Kawo',when:'Fri · 6:00 AM',seats:1,cap:3,price:6000,neg:false,car:'Toyota Avensis, blue',rules:['No smoking','Set pickup points']},
     {id:6,driver:'Hauwa Garba',rating:4.8,count:87,fromC:'kaduna',toC:'abuja',from:'Kaduna · Rigasa',to:'Abuja · Jabi',when:'Tomorrow · 3:00 PM',seats:3,cap:3,price:6500,neg:true,car:'Kia Cerato, red',rules:['AC','Luggage ok','Quiet ride']},
-    {id:7,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'kaduna',from:'Abuja · Wuse 2',to:'Kaduna · Barnawa',when:'Sat · 6:30 AM',seats:2,cap:3,price:6500,neg:true,floor:5500,boosted:false,car:'Toyota Camry, silver',rules:['AC','Luggage ok']},
+    {id:7,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Central Business District',when:'Tomorrow · 7:00 AM',seats:2,cap:3,price:1500,neg:true,floor:1200,boosted:false,car:'Toyota Camry, silver',rules:['AC','Luggage ok']},
     {id:8,past:true,driver:'Hauwa Garba',rating:4.8,count:87,fromC:'kaduna',toC:'abuja',from:'Kaduna · Rigasa',to:'Abuja · Jabi',when:'Fri 14 Nov · 3:00 PM',seats:0,cap:3,price:6500,neg:true,car:'Kia Cerato, red',rules:['AC']},
     {id:9,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'jos',from:'Abuja · Wuse 2',to:'Jos · Terminus',when:'Sun 16 Nov · 8:00 AM',seats:0,cap:3,price:7500,neg:true,car:'Toyota Camry, silver',rules:['AC'],earned:22500,riders:3,
       pax:[{name:'Chinedu Okeke',amount:7500},{name:'Amaka Eze',amount:7500},{name:'Bala Musa',amount:7500}],rated:4.9},
@@ -108,11 +124,11 @@ const S = {
   offers:[],
   bookings:[],
   incoming:[
-    {id:1,tripId:7,name:'Chinedu Okeke',amount:5300,status:'new',rating:4.7,trips:31,since:'2024',pickup:'Wuse Market gate',drop:'Barnawa roundabout',bag:'1 small bag',note:'I can be at the gate 10 minutes early.',review:'Polite and on time. — Musa A.'},
-    {id:2,tripId:7,name:'Fatima Sani',amount:6500,status:'new',rating:4.9,trips:12,since:'2025',pickup:'Banex Plaza',drop:'Kaduna Central Market',bag:'No luggage',note:'',review:'Easy passenger, ready at pickup. — Amina B.'},
-    {id:3,tripId:7,name:'Yusuf Danjuma',amount:6500,status:'accepted',rating:4.8,trips:58,since:'2023',pickup:'Berger junction',drop:'Barnawa',bag:'1 suitcase',note:'',review:''}
+    {id:1,tripId:7,name:'Chinedu Okeke',amount:1300,status:'new',rating:4.7,trips:31,since:'2024',pickup:'Kubwa Village junction',drop:'Federal Secretariat',bag:'1 small bag',note:'I can be at the gate 10 minutes early.',review:'Polite and on time. — Musa A.'},
+    {id:2,tripId:7,name:'Fatima Sani',amount:1500,status:'new',rating:4.9,trips:12,since:'2025',pickup:'NNPC filling station, Kubwa',drop:'Ministry of Finance',bag:'No luggage',note:'',review:'Easy passenger, ready at pickup. — Amina B.'},
+    {id:3,tripId:7,name:'Yusuf Danjuma',amount:1500,status:'accepted',rating:4.8,trips:58,since:'2023',pickup:'Phase 4, Kubwa',drop:'Central Bank',bag:'1 suitcase',note:'',review:''}
   ],
-  post:{fromC:'abuja',toC:'kaduna',fromA:'Wuse 2',toA:'Barnawa',day:'Tomorrow',time:'07:00',seats:3,price:6500,neg:true,floor:5500,rules:['AC','Luggage ok']},
+  post:{fromC:'abuja',toC:'abuja',fromA:'Kubwa',toA:'Central Business District',day:'Tomorrow',time:'07:00',seats:3,price:1500,neg:true,floor:1200,rules:['AC','Luggage ok']},
   earn:{today:8000,week:48500,month:186000,all:1240000}, earnP:'week', hideBal:false,
   reviews:[{n:'Chinedu O.',s:5,t:'Smooth driving and left right on time.'},{n:'Amaka E.',s:5,t:'Clean car, cold AC, helped with my bag.'},{n:'Bala M.',s:4,t:'Good trip. Pickup spot was easy to find.'}]
 };
@@ -171,7 +187,7 @@ const nearestCity=ll=>{ let best='abuja',bd=1e9; Object.entries(CITIES).forEach(
 /* which of our cities a place belongs to (FCT counts as Abuja) */
 const cityOf=(parts,ll)=>{ const txt=parts.filter(Boolean).join(' ').toLowerCase(); if(/federal capital|\bfct\b|abuja/.test(txt)) return 'Abuja';
   const k=Object.keys(CITIES).find(k=>txt.includes(CITIES[k].n.toLowerCase())); return k?CITIES[k].n:(ll?CITIES[nearestCity(ll)].n:''); };
-const tripPlaces=t=>{ const [c1,a1]=t.from.split(' · '), [c2,a2]=t.to.split(' · '); return {a:place(a1,c1),b:place(a2,c2),ac:t.fromC,bc:t.toC}; };
+const tripPlaces=t=>{ const [c1,a1]=t.from.split(' · '), [c2,a2]=t.to.split(' · '); return {a:place(a1,c1),b:place(a2,c2),aLL:t.fromLL||areaLL(a1)||null,bLL:t.toLL||areaLL(a2)||null,ac:t.fromC,bc:t.toC}; };
 const llKey=ll=>ll?ll.lat.toFixed(4)+','+ll.lng.toFixed(4):'';
 const mapKey=sp=>(sp.aLL?llKey(sp.aLL):sp.a||'')+'|'+(sp.bLL?llKey(sp.bLL):sp.b||'');
 function gmap(sp, tag){
@@ -195,7 +211,7 @@ function gAdapter(el){
       else { user.setPosition(P(ll)); acc.setCenter(P(ll)); acc.setRadius(ll.acc||30); } },
     car:(ll,rot,col)=>{ const icon={path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:6,fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2,rotation:rot};
       if(!car) car=new google.maps.Marker({map,position:P(ll),zIndex:8,icon}); else { car.setPosition(P(ll)); car.setIcon(icon); } },
-    pan:(ll,z)=>{ map.panTo(P(ll)); if(z) map.setZoom(z); }, onDrag:cb=>map.addListener('dragstart',cb), resize:()=>{} };
+    pan:(ll,z)=>{ map.panTo(P(ll)); if(z) map.setZoom(z); }, onDrag:cb=>map.addListener('dragstart',cb), resize:()=>{}, center:()=>{ const c=map.getCenter(); return {lat:c.lat(),lng:c.lng()}; }, onIdle:cb=>map.addListener('idle',cb) };
 }
 function lAdapter(el){
   const map=L.map(el,{zoomControl:false,attributionControl:true,zoomSnap:.5}).setView([9.07,7.48],11);
@@ -210,14 +226,25 @@ function lAdapter(el){
         user=L.marker(A(ll),{icon:L.divIcon({className:'udot',iconSize:[20,20],html:'<i></i>'}),interactive:false,zIndexOffset:900}).addTo(map); }
       else { user.setLatLng(A(ll)); acc.setLatLng(A(ll)); acc.setRadius(ll.acc||30); } },
     car:(ll,rot,col)=>{ if(!car) car=L.marker(A(ll),{icon:carIcon(rot,col),interactive:false,zIndexOffset:800}).addTo(map); else { car.setLatLng(A(ll)); car.setIcon(carIcon(rot,col)); } },
-    pan:(ll,z)=>map.setView(A(ll),z||map.getZoom(),{animate:true}), onDrag:cb=>map.on('dragstart',cb), resize:()=>map.invalidateSize() };
+    pan:(ll,z)=>map.setView(A(ll),z||map.getZoom(),{animate:true}), onDrag:cb=>map.on('dragstart',cb), resize:()=>map.invalidateSize(), center:()=>{ const c=map.getCenter(); return {lat:c.lat,lng:c.lng}; }, onIdle:cb=>map.on('moveend',cb) };
 }
 /* --- places: search, coordinates, address for a GPS point --- */
 async function geocode(q){
   if(!q) return null; if(q in geoCache) return geoCache[q]; let r=null;
   try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({address:q,region:'ng'}); const l=res.results[0].geometry.location; r={lat:l.lat(),lng:l.lng()}; }
-    else { const j=await (await fetch('https://photon.komoot.io/api/?limit=1&lang=en&bbox='+NG_BBOX+'&q='+encodeURIComponent(q.replace(/, Nigeria$/,'')))).json(); const f=j.features&&j.features[0]; if(f) r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; } }catch(e){}
+    else { const qq=encodeURIComponent(q.replace(/, Nigeria$/,'')); for(const bb of ['6.70,8.40,7.90,9.60',NG_BBOX]){
+        const j=await (await fetch('https://photon.komoot.io/api/?limit=1&lang=en&lat=9.06&lon=7.49&bbox='+bb+'&q='+qq)).json(); const f=j.features&&j.features[0];
+        if(f){ r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; break; } } } }catch(e){}
   return geoCache[q]=r;
+}
+async function reverseStreet(ll){
+  try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
+      const g=t=>(r.address_components.find(c=>c.types.includes(t))||{}).long_name;
+      return {label:[g('street_number')&&g('route')?g('street_number')+' '+g('route'):g('route')||g('premise'),g('neighborhood')||g('sublocality')].filter(Boolean).join(', ')||r.formatted_address.split(',').slice(0,2).join(','),city:cityOf([g('locality'),g('administrative_area_level_1')],ll)}; }
+    const j=await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=${ll.lat}&lon=${ll.lng}`)).json(); const a=j.address||{};
+    const street=[a.house_number,a.road].filter(Boolean).join(' ')||a.pedestrian||a.amenity||j.name;
+    return {label:[street,a.suburb||a.neighbourhood||a.quarter||a.village||a.city_district].filter((v,i,x)=>v&&x.indexOf(v)===i).join(', ')||'Pinned spot',city:cityOf([a.city,a.county,a.state],ll)};
+  }catch(e){ return {label:'Pinned spot',city:CITIES[nearestCity(ll)].n}; }
 }
 async function reverse(ll){
   try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
@@ -229,6 +256,7 @@ async function reverse(ll){
 }
 const localSugg=q=>{ q=q.trim().toLowerCase(); const seen=new Set(), out=[];
   S.trips.forEach(t=>[t.from,t.to].forEach(s=>{ const [c,a]=s.split(' · '); const lab=a||c; if(!seen.has(s)&&(!q||s.toLowerCase().includes(q))){ seen.add(s); out.push({label:lab,sub:a?c:'Nigeria',city:c}); } }));
+  Object.keys(AREAS).forEach(a=>{ const k='Abuja · '+a; if(!seen.has(k)&&(!q||a.toLowerCase().includes(q))){ seen.add(k); out.push({label:a,sub:'Abuja',city:'Abuja',ll:{lat:AREAS[a][0],lng:AREAS[a][1]}}); } });
   Object.values(CITIES).forEach(c=>{ if(!seen.has(c.n)&&(!q||c.n.toLowerCase().includes(q))){ seen.add(c.n); out.push({label:c.n,sub:'Nigeria',city:c.n,ll:LLc(c)}); } });
   return out.slice(0,6); };
 async function suggest(q){
@@ -239,10 +267,17 @@ async function suggest(q){
       const l=suggestions.filter(s=>s.placePrediction).slice(0,6).map(s=>({label:s.placePrediction.mainText.text,sub:s.placePrediction.secondaryText?s.placePrediction.secondaryText.text:'',pred:s.placePrediction}));
       if(l.length) return l; }
     else if(MAPMODE==='osm'){ const bias=(S.loc&&S.loc.acc<1500?`&lat=${S.loc.lat}&lon=${S.loc.lng}`:'&lat=9.07&lon=7.48')+'&location_bias_scale=0.6';
-      const j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
+      let j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox=6.70,8.40,7.90,9.60'+bias+'&q='+encodeURIComponent(q))).json();
+      if(!(j.features||[]).length) j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
       const l=(j.features||[]).map(f=>{ const p=f.properties, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
         return {label:p.name||p.street||p.city,sub:[p.street&&p.name!==p.street?p.street:'',p.district||p.locality,p.city||p.county,p.state].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),ll,city:cityOf([p.city,p.county,p.state,p.name],ll)}; }).filter(x=>x.label);
-      if(l.length) return l; }
+      if(l.length>=3) return l;
+      try{ const vb='&viewbox=7.20,9.25,7.65,8.85'; const n=await (await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=ng'+vb+'&q='+encodeURIComponent(q))).json();
+        const seen=new Set(l.map(x=>x.label.toLowerCase()));
+        n.forEach(r=>{ const a=r.address||{}, lab=r.name||a.road||r.display_name.split(',')[0]; if(!lab||seen.has(lab.toLowerCase())) return; seen.add(lab.toLowerCase());
+          const ll={lat:+r.lat,lng:+r.lon}; l.push({label:lab,sub:[a.road&&a.road!==lab?a.road:'',a.suburb||a.neighbourhood||a.quarter,a.city||a.state].filter((v,i,x)=>v&&x.indexOf(v)===i).join(', '),ll,city:cityOf([a.city,a.county,a.state],ll)}); });
+      }catch(e){}
+      if(l.length) return l.slice(0,7); }
   }catch(e){}
   return localSugg(q);
 }
@@ -353,11 +388,42 @@ function drawSugg(){
   const cur=(SG.field==='from'||SG.field==='pfa');
   const rows=(cur?[`<button class="sg cur" onpointerdown="event.preventDefault()" onclick="useCurrent('${SG.field}')"><span class="ico">${ic('locate',16)}</span><span class="grow"><b>Current location</b><small>${S.loc&&S.loc.label?esc(S.loc.label)+(S.loc.acc>1500?' · approximate':''):LOC.denied?'Location is off':'Use where you are now'}</small></span></button>`]:[])
     .concat(SG.list.map((s,i)=>`<button class="sg" onpointerdown="event.preventDefault()" onclick="pickSugg(${i})"><span class="ico">${ic('pin',16)}</span><span class="grow"><b>${esc(s.label)}</b><small>${esc(s.sub||'')}</small></span></button>`));
+  if(MAPMODE!=='svg') rows.push(`<button class="sg pickmap" onpointerdown="event.preventDefault()" onclick="openPicker('${SG.field}')"><span class="ico">${ic('pin',16)}</span><span class="grow"><b>Choose on map</b><small>Can't find it? Move the map to the exact spot</small></span></button>`);
   box.innerHTML=rows.join(''); box.hidden=!rows.length;
 }
 document.addEventListener('pointerdown',e=>{ if(SG.field&&!e.target.closest('.sugg,#qf,#qt,#pfa,#pta')) closeSugg(); },true);
 function blurSugg(){ const a=document.activeElement; if(!(a&&a.matches&&a.matches('#qf,#qt,#pfa,#pta'))) closeSugg(); }
 function closeSugg(){ SG.field=null; document.querySelectorAll('.sugg').forEach(b=>{ b.hidden=true; b.innerHTML=''; }); }
+/* --- choose on map: pan the map under a fixed pin, like Bolt/Uber --- */
+let PK=null;
+function openPicker(field){
+  closeSugg(); const a=document.activeElement; if(a&&a.blur) a.blur();
+  const cur={from:S.fromPl&&S.fromPl.ll,to:S.toPl&&S.toPl.ll,pfa:S.post.fromLL,pta:S.post.toLL}[field];
+  const start=cur||(S.loc&&S.loc.acc<=1500?{lat:S.loc.lat,lng:S.loc.lng}:{lat:9.0579,lng:7.4951});
+  const title={from:'Pickup point',to:'Destination',pfa:'Pickup spot',pta:'Drop-off spot'}[field];
+  const el=document.createElement('div'); el.id='picker'; el.innerHTML=`<div class="pk-top"><button class="back" onclick="closePicker()" style="margin:0">${ic('back',16)} Back</button><b>${title}</b><span></span></div>
+    <div class="pk-map"><div class="gmc" id="pkmap"></div><span class="pk-pin">${ic('pin',40)}</span><span class="pk-shadow"></span><button class="mloc" onclick="pkLocate()" aria-label="Go to my location">${ic('locate',18)}</button></div>
+    <div class="pk-card"><div class="label">Move the map so the pin is on the exact spot</div><div class="pk-addr" id="pkaddr">Finding address…</div>
+      <input class="input" id="pkland" placeholder="Landmark (optional), e.g. opposite Shoprite" autocomplete="off">
+      <button class="btn" id="pkok" onclick="confirmPicker()">Confirm ${title.toLowerCase()}</button></div>`;
+  $('#phone').appendChild(el);
+  const api=MAPMODE==='google'?gAdapter($('#pkmap')):lAdapter($('#pkmap'));
+  PK={field,api,addr:null,ll:start,t:null}; api.view(start,17); if(S.loc) api.user(S.loc);
+  requestAnimationFrame(()=>{ api.resize(); api.view(start,17); });
+  const upd=()=>{ const c=api.center(); PK.ll=c; $('#pkaddr').textContent='Finding address…'; el.classList.remove('moving'); clearTimeout(PK.t);
+    PK.t=setTimeout(async()=>{ const r=await reverseStreet(c); if(!PK||PK.ll!==c) return; PK.addr=r; $('#pkaddr').textContent=r.label; },350); };
+  api.onDrag(()=>el.classList.add('moving')); api.onIdle(upd); upd();
+}
+function pkLocate(){ if(S.loc&&PK) PK.api.pan(S.loc,17); else startLoc(true); }
+function closePicker(){ const el=$('#picker'); if(el) el.remove(); PK=null; }
+function confirmPicker(){
+  if(!PK) return; const f=PK.field, ll=PK.ll, r=PK.addr||{label:'Pinned spot',city:CITIES[nearestCity(ll)].n}, land=$('#pkland').value.trim();
+  const lab=land||r.label, sub=land?r.label:'Pinned on map', city=r.city||CITIES[nearestCity(ll)].n;
+  if(f==='from'){ S.fromPl={label:lab,sub,ll}; S.fromTxt=lab; S.from=city; S.fromTyped=true; }
+  if(f==='to'){ S.toPl={label:lab,sub,ll}; S.toTxt=lab; S.to=city; }
+  if(f==='pfa'||f==='pta'){ const k=cityKey(city), p=S.post; p.touched=true; if(f==='pfa'){ p.fromA=lab; p.fromLL=ll; if(k) p.fromC=k; } else { p.toA=lab; p.toLL=ll; if(k) p.toC=k; } }
+  S.selTrip=null; closePicker(); render(); toast('Location set: '+lab);
+}
 async function pickSugg(i){
   const f=SG.field, it=SG.list[i]; if(!it) return; closeSugg(); const a=document.activeElement; if(a&&a.blur) a.blur();
   const s=await resolveSugg(it); if(!s) return;
@@ -499,7 +565,10 @@ const QUICK=['today','neg','ac','women'];
 const SORTS={best:'Best match',cheap:'Cheapest',early:'Earliest',rating:'Top rated'};
 const dayRank=t=>({Today:0,Tomorrow:1}[dayOf(t)]??2);
 function findTrips(){
-  const f=S.from.trim().toLowerCase(), d=S.to.trim().toLowerCase();
+  const pool=S.trips.filter(t=>!t.mine&&!t.past), known=q=>!q||pool.some(t=>(t.from+' '+t.to).toLowerCase().includes(q));
+  let f=S.from.trim().toLowerCase(), d=S.to.trim().toLowerCase();
+  if(!known(f)) f=(S.fromPl&&S.fromPl.ll?CITIES[nearestCity(S.fromPl.ll)].n:'abuja').toLowerCase();
+  if(!known(d)) d=S.toPl&&S.toPl.ll?CITIES[nearestCity(S.toPl.ll)].n.toLowerCase():'';
   const l=S.trips.filter(t=>!t.mine && !t.past && (!f||t.from.toLowerCase().includes(f)) && (!d||t.to.toLowerCase().includes(d))
     && (!S.maxPrice||t.price<=S.maxPrice) && FGROUPS.every(([,ks])=>{ const on=ks.filter(k=>S.filters.includes(k)); return !on.length||on.some(k=>FILT[k].fn(t)); }));
   const by={best:(a,b)=>(!!b.boosted-!!a.boosted)||(dayRank(a)-dayRank(b)), cheap:(a,b)=>a.price-b.price, early:(a,b)=>(dayRank(a)-dayRank(b))||(hourOf(a)-hourOf(b)), rating:(a,b)=>b.rating-a.rating}[S.sort];
@@ -549,7 +618,7 @@ function vDetail(){
   else act=`<div class="btns" style="flex-direction:column"><button class="btn" ${t.seats?'':'disabled'} onclick="sendOffer(${t.id},${t.price})">Request a seat at ${naira(t.price)}</button>
     ${t.neg?`<button class="btn ghost" ${t.seats?'':'disabled'} onclick="S.sheet={type:'offer',tripId:${t.id}};render()">Make an offer</button>`:''}</div>`;
   return `<button class="back" onclick="go('${S.mode==='driver'?'dTrips':'find'}')">${ic('back',16)} Back</button>
-  ${gmap(tripPlaces(t),'≈ '+Math.round(KM(t.fromC,t.toC))+' km · '+dur(MINS(t.fromC,t.toC)))}<div>
+  ${gmap(tripPlaces(t),'≈ '+Math.round(tKm(t))+' km · '+dur(tMins(t)))}<div>
   <div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="row"><div class="avatar">${initials(t.driver)}</div><div><div class="name">${esc(t.driver)}</div><div class="meta">★ ${t.rating} · ${esc(t.car)}</div></div></div><div class="price">${naira(t.price)}<small> /seat</small></div></div>
     <div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
     <div class="chips"><span class="chip ${t.seats?'good':'bad'}">${t.seats} seat${t.seats===1?'':'s'} left</span>${t.neg?'<span class="chip">Negotiable</span>':'<span class="chip">Fixed price</span>'}</div></div>
@@ -603,7 +672,7 @@ function vTrips(){
 /* ---------- tracking (both modes) ---------- */
 function startTrack(tripId, role, bid){ stopTrack(); const tr=trip(tripId); tr.live=true; S.track={tripId,role,bid,t:tr.prog||0,arrived:false,picked:[],timer:null}; go('track'); S.track.timer=setInterval(tick,300); }
 function stopTrack(){ if(S.track&&S.track.timer){ clearInterval(S.track.timer); S.track.timer=null; } }
-const etaText = () => { const T=S.track,t=trip(T.tripId); const m=Math.round((1-T.t)*MINS(t.fromC,t.toC)); return T.arrived?'Arrived':(m<=1?'Arriving now':dur(m)+' left'); };
+const etaText = () => { const T=S.track,t=trip(T.tripId); const m=Math.round((1-T.t)*tMins(t)); return T.arrived?'Arrived':(m<=1?'Arriving now':dur(m)+' left'); };
 function tick(){ const T=S.track; if(!T||S.view!=='track'){ stopTrack(); return; } T.t=Math.min(1,T.t+0.012); trip(T.tripId).prog=T.t;
   if(MAPMODE==='svg'){ const w=$('#mapwrap'); if(w) w.innerHTML=trackMap(); } else { const m=mapEls.get(mapKey(tripPlaces(trip(T.tripId)))); if(m&&m.map) moveCar(m,T.t); } const e=$('#eta'); if(e) e.textContent=etaText(); const b=$('#prog'); if(b) b.style.width=(T.t*100)+'%';
   if(T.t>=1){ stopTrack(); arrive(); } }
@@ -664,7 +733,7 @@ function pastCard(t){
   const pax=t.pax||[], tot=pax.reduce((x,p)=>x+p.amount,0)||t.earned||0;
   return `<details class="card past"><summary><div class="grow"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><div class="meta">${esc(t.when)} · ${pax.length||t.riders||0} passengers</div></div><span class="chip good">${S.hideBal?'₦ •••':naira(t.earned||tot)}</span><span class="chev">${ic('chev',16)}</span></summary>
     <div class="pd"><div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
-    <div class="kv"><span>Distance</span><b>≈ ${Math.round(KM(t.fromC,t.toC))} km · ${dur(MINS(t.fromC,t.toC))}</b></div>
+    <div class="kv"><span>Distance</span><b>≈ ${Math.round(tKm(t))} km · ${dur(tMins(t))}</b></div>
     <div class="kv"><span>Car</span><b>${esc(t.car)}</b></div><div class="kv"><span>Price per seat</span><b>${naira(t.price)}</b></div>
     ${t.rated?`<div class="kv"><span>Rating from passengers</span><b>★ ${t.rated}</b></div>`:''}
     <div class="label" style="margin:10px 0 4px">Passengers</div>${pax.map(p=>`<div class="kv"><span class="row" style="gap:8px"><span class="avatar sm">${initials(p.name)}</span>${esc(p.name)}</span><b>${naira(p.amount)}</b></div>`).join('')||'<div class="meta">No passengers on this trip.</div>'}
@@ -685,7 +754,7 @@ function vDTrips(){
       :(list.length?`<p class="sub">Tap a trip to see the details.</p>${list.map(pastCard).join('')}`:empty)}`;
 }
 /* post a trip */
-const distText = () => S.post.fromC===S.post.toC ? 'Pick two different cities' : '≈ '+Math.round(KM(S.post.fromC,S.post.toC))+' km · about '+dur(MINS(S.post.fromC,S.post.toC));
+const distText = () => { const p=S.post; if(p.fromC===p.toC&&!(p.fromA.trim()&&p.toA.trim())) return 'Add a pickup and drop-off spot'; return '≈ '+Math.round(routeKm(p.fromC,p.fromA,p.toC,p.toA))+' km · about '+dur(routeMins(p.fromC,p.fromA,p.toC,p.toA)); };
 const postSpec = () => { const p=S.post; return {a:place(p.fromA,CITIES[p.fromC].n),aLL:p.fromLL||null,b:p.fromC===p.toC&&!p.toA?'':place(p.toA,CITIES[p.toC].n),bLL:p.toLL||null,ac:p.fromC,bc:p.toC}; };
 const postMap = () => gmap(postSpec(),'Route preview');
 let pmT; function updPost(){ const d=$('#dist'); if(d) d.textContent=distText(); clearTimeout(pmT); pmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=postMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
@@ -710,7 +779,7 @@ function vPost(){
   <button class="btn" onclick="publish()">Publish trip</button></div>`;
 }
 function publish(){
-  const p=S.post; if(p.fromC===p.toC){ toast('Pick two different cities'); return; } if(!(p.price>0)){ toast('Add a price per seat'); return; }
+  const p=S.post; if(p.fromC===p.toC&&(!p.fromA.trim()||!p.toA.trim()||p.fromA.trim().toLowerCase()===p.toA.trim().toLowerCase())){ toast('Add different pickup and drop-off spots'); return; } if(!(p.price>0)){ toast('Add a price per seat'); return; }
   const t={id:S.nextId++,mine:true,driver:'You',rating:4.9,count:42,fromC:p.fromC,toC:p.toC,from:CITIES[p.fromC].n+(p.fromA.trim()?' · '+p.fromA.trim():''),to:CITIES[p.toC].n+(p.toA.trim()?' · '+p.toA.trim():''),
     when:p.day+' · '+to12(p.time),seats:p.seats,cap:p.seats,price:p.price,neg:p.neg,floor:p.floor,boosted:false,car:S.user.veh.make+' '+S.user.veh.model+', '+(S.user.veh.color||'').toLowerCase(),rules:p.rules.length?[...p.rules]:[]};
   if(!p.neg) t.floor=0; S.trips.push(t); S.dtab='up'; go('dTrips'); toast('Trip published. Passengers can request seats now.');
@@ -756,9 +825,9 @@ function vProfile(){
 /* ---------- sheets ---------- */
 function sheetHTML(){
   const s=S.sheet; if(!s) return '';
-  if(s.type==='offer'){ const t=trip(s.tripId), o=s.again?offer(s.again):null, start=o?o.counter:Math.max(500,Math.round(t.price*0.85/500)*500);
+  if(s.type==='offer'){ const t=trip(s.tripId), o=s.again?offer(s.again):null, st=t.price<=5000?100:500, start=o?o.counter:Math.max(st,Math.round(t.price*0.85/st)*st);
     return `<div class="sheet" role="dialog" aria-label="Make an offer"><h2>${o?'Counter the driver':'Make an offer'}</h2><p class="sub">Listed price ${naira(t.price)} per seat. The driver can accept, counter or decline.</p>
-      <div class="field"><label for="oa">Your price (₦)</label><div class="amt"><button aria-label="Lower by 500" onclick="bump(-500,${t.price})">−</button><input class="input" id="oa" type="number" inputmode="numeric" step="500" value="${start}"><button aria-label="Raise by 500" onclick="bump(500,${t.price})">+</button></div><span class="hint">Each tap changes your offer by ₦500.</span></div>
+      <div class="field"><label for="oa">Your price (₦)</label><div class="amt"><button aria-label="Lower by ${st}" onclick="bump(-${st},${t.price})">−</button><input class="input" id="oa" type="number" inputmode="numeric" step="${st}" value="${start}"><button aria-label="Raise by ${st}" onclick="bump(${st},${t.price})">+</button></div><span class="hint">Each tap changes your offer by ${naira(st)}.</span></div>
       <div class="btns"><button class="btn ghost" onclick="S.sheet=null;render()">Cancel</button><button class="btn" onclick="submitOffer(${t.id},${s.again||0})">Send offer</button></div></div>`; }
   if(s.type==='counter'){ const i=S.incoming.find(x=>x.id===s.inc), t=trip(i.tripId);
     return `<div class="sheet" role="dialog" aria-label="Counter offer"><h2>Counter ${esc(i.name.split(' ')[0])}</h2><p class="sub">They offered ${naira(i.amount)}. Your listed price is ${naira(t.price)}.</p>
@@ -793,7 +862,7 @@ function sheetHTML(){
       <div class="btns" style="flex-direction:column"><button class="btn bad" onclick="S.sheet=null;toast('Demo: this would call 112')">Call 112</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: your emergency contact would be alerted')">Alert my emergency contact</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: live location would be shared')">Share live location</button><button class="btn ghost" onclick="S.sheet=null;render()">Close</button></div></div>`;
   return '';
 }
-function bump(d,max){ const el=$('#oa'); const v=Math.min(max,Math.max(500,Math.round(((+el.value||0)+d)/500)*500)); el.value=v; }
+function bump(d,max){ const el=$('#oa'), st=Math.abs(d); const v=Math.min(max,Math.max(st,Math.round(((+el.value||0)+d)/st)*st)); el.value=v; }
 function submitOffer(tripId, again){ const v=+$('#oa').value, t=trip(tripId); if(!(v>0)){ toast('Enter an amount'); return; } if(v>t.price){ toast('Offer is above the listed price. Use the listed price instead.'); return; } sendOffer(tripId,v,again||undefined); }
 function submitCounter(id){ const v=+$('#oa').value, i=S.incoming.find(x=>x.id===id), t=trip(i.tripId); if(!(v>0)){ toast('Enter an amount'); return; }
   i.status='countered'; i.counter=v; S.sheet=null; render();
