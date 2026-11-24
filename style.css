@@ -493,3 +493,15 @@ body.bare nav.tabs button.t,body.bare nav.tabs button.fab{font-size:11.5px}
 body.bare .gslot{height:min(240px,32vh)}
 @container app (max-width:340px){.gslot{height:180px}}
 @container app (min-width:600px){.gslot{height:300px}}
+/* cards: compact, comfortable size */
+.card{border-radius:16px}
+body.bare .card{padding:12px;margin-bottom:8px}
+.card.tap.tc{padding:10px 12px;gap:10px;margin-bottom:8px;min-height:60px}
+.tc .avatar{width:32px;height:32px;font-size:11px}
+.tc .name,body.bare .tc .name{font-size:13.5px;font-weight:600}
+.tc .meta,body.bare .tc .meta{font-size:11.5px;margin-top:1px}
+.tc .price{font-size:14.5px}
+.tc .tag{font-size:9.5px;padding:1px 6px}
+.tcr{gap:3px}
+.card.promoted{box-shadow:0 0 0 1.5px var(--boost),0 2px 8px rgba(240,165,0,.10)}
+body.bare .card.promoted{border:0}
