@@ -392,9 +392,9 @@ function useCurrent(field,quiet){
 }
 function locateMe(){ if(S.loc) useCurrent('from'); else { LOC.wantFrom=true; startLoc(true); setTimeout(()=>{ if(S.loc&&LOC.wantFrom){ LOC.wantFrom=false; useCurrent('from'); } },2500); } }
 /* --- suggestions dropdown for From, To, Pickup, Drop-off --- */
-let sgT, SG={field:null,list:[]};
+let sgT, SG={field:null,list:[],q:''};
 function openSugg(field,q){
-  SG.field=field; clearTimeout(sgT);
+  SG.field=field; SG.q=(q||'').trim(); clearTimeout(sgT);
   sgT=setTimeout(async()=>{ const list=await suggest(q||''); if(SG.field!==field) return; SG.list=list; drawSugg(); }, (q||'').length<2?0:280);
 }
 function drawSugg(){
@@ -402,10 +402,23 @@ function drawSugg(){
   const cur=(SG.field==='from'||SG.field==='pfa');
   const rows=(cur?[`<button class="sg cur" onpointerdown="event.preventDefault()" onclick="useCurrent('${SG.field}')"><span class="ico">${ic('locate',16)}</span><span class="grow"><b>Current location</b><small>${S.loc&&S.loc.label?esc(S.loc.label)+(S.loc.acc>1500?' · approximate':''):LOC.denied?'Location is off':'Use where you are now'}</small></span></button>`]:[])
     .concat(SG.list.map((s,i)=>`<button class="sg" onpointerdown="event.preventDefault()" onclick="pickSugg(${i})"><span class="ico">${ic('pin',16)}</span><span class="grow"><b>${esc(s.label)}</b><small>${esc(s.sub||'')}</small></span></button>`));
+  const gq=(SG.q||'').trim(); if(gq.length>=3&&MAPMODE!=='svg') rows.unshift(`<button class="sg gfind" onpointerdown="event.preventDefault()" onclick="useTyped('${SG.field}')"><span class="ico">${ic('find',16)}</span><span class="grow"><b>Find “${esc(gq)}” on Google Maps</b><small>Shows on the map exactly as Google finds it</small></span></button>`);
   if(MAPMODE!=='svg') rows.push(`<button class="sg pickmap" onpointerdown="event.preventDefault()" onclick="openPicker('${SG.field}')"><span class="ico">${ic('pin',16)}</span><span class="grow"><b>Choose on map</b><small>Can't find it? Move the map to the exact spot</small></span></button>`);
   box.innerHTML=rows.join(''); box.hidden=!rows.length;
 }
 document.addEventListener('pointerdown',e=>{ if(SG.field&&!e.target.closest('.sugg,#qf,#qt,#pfa,#pta')) closeSugg(); },true);
+/* use what the person typed and let Google Maps find it (free embed resolves any place Google knows) */
+function useTyped(field){
+  const el=document.getElementById({from:'qf',to:'qt',pfa:'pfa',pta:'pta'}[field]); const q=((el&&el.value)||SG.q||'').trim(); if(!q) return;
+  closeSugg(); if(el&&el.blur) el.blur();
+  const city=cityKey(q)?CITIES[cityKey(q)].n:'Abuja', full=q+(cityKey(q)||/abuja|fct/i.test(q)?'':', Abuja');
+  if(field==='from'){ S.fromPl={label:q,sub:'Google Maps',g:full}; S.fromTxt=q; S.from=city; S.fromTyped=true; }
+  if(field==='to'){ S.toPl={label:q,sub:'Google Maps',g:full}; S.toTxt=q; S.to=city; }
+  if(field==='pfa'){ S.post.fromA=q; S.post.fromLL=null; S.post.touched=true; }
+  if(field==='pta'){ S.post.toA=q; S.post.toLL=null; }
+  S.selTrip=null; render();
+}
+function sgKey(field,e){ if(e.key==='Enter'){ e.preventDefault(); useTyped(field); } }
 function blurSugg(){ const a=document.activeElement; if(!(a&&a.matches&&a.matches('#qf,#qt,#pfa,#pta'))) closeSugg(); }
 function closeSugg(){ SG.field=null; document.querySelectorAll('.sugg').forEach(b=>{ b.hidden=true; b.innerHTML=''; }); }
 /* --- choose on map: pan the map under a fixed pin, like Bolt/Uber --- */
@@ -583,7 +596,7 @@ const dayRank=t=>({Today:0,Tomorrow:1}[dayOf(t)]??2);
 function findTrips(){
   const pool=S.trips.filter(t=>!t.mine&&!t.past), known=q=>!q||pool.some(t=>(t.from+' '+t.to).toLowerCase().includes(q));
   let f=S.from.trim().toLowerCase(), d=S.to.trim().toLowerCase();
-  if(!known(f)) f=(S.fromPl&&S.fromPl.ll?CITIES[nearestCity(S.fromPl.ll)].n:'abuja').toLowerCase();
+  if(!known(f)) f=(S.fromPl&&S.fromPl.ll?CITIES[nearestCity(S.fromPl.ll)].n:(S.fromPl&&S.fromPl.g&&cityKey(S.from)?S.from:'abuja')).toLowerCase();
   if(!known(d)) d=S.toPl&&S.toPl.ll?CITIES[nearestCity(S.toPl.ll)].n.toLowerCase():'';
   const l=S.trips.filter(t=>!t.mine && !t.past && (!f||t.from.toLowerCase().includes(f)) && (!d||t.to.toLowerCase().includes(d))
     && (!S.maxPrice||t.price<=S.maxPrice) && FGROUPS.every(([,ks])=>{ const on=ks.filter(k=>S.filters.includes(k)); return !on.length||on.some(k=>FILT[k].fn(t)); }));
@@ -593,7 +606,7 @@ function findTrips(){
 const nFilters=()=>S.filters.length+(S.maxPrice?1:0);
 const tripList = () => { const l=findTrips(); return l.length ? l.map(tripCard).join('') : `<div class="empty"><b>No trips match</b>Try another route or clear a filter.</div>${nFilters()?'<button class="btn ghost" onclick="clearFilters()">Clear filters</button>':''}`; };
 const findSpec = () => { const t=S.selTrip&&trip(S.selTrip); if(t) return tripPlaces(t);
-  const inAbj=t=>t?t+(cityKey(t)||/abuja|fct/i.test(t)?'':', Abuja')+', Nigeria':''; return {a:S.fromPl?'':inAbj(S.from.trim()),aLL:S.fromPl&&S.fromPl.ll,b:S.toPl?'':inAbj(S.to.trim()),bLL:S.toPl&&S.toPl.ll,ac:cityKey(S.from),bc:cityKey(S.to)}; };
+  const inAbj=t=>t?t+(cityKey(t)||/abuja|fct/i.test(t)?'':', Abuja')+', Nigeria':''; return {a:S.fromPl?(S.fromPl.g?S.fromPl.g+', Nigeria':''):inAbj(S.from.trim()),aLL:S.fromPl&&S.fromPl.ll,b:S.toPl?(S.toPl.g?S.toPl.g+', Nigeria':''):inAbj(S.to.trim()),bLL:S.toPl&&S.toPl.ll,ac:cityKey(S.from),bc:cityKey(S.to)}; };
 const findMap = () => gmap(findSpec(), S.selTrip?'Selected trip':((S.fromTxt||S.from)&&(S.toTxt||S.to)?(S.fromTxt||S.from)+' to '+(S.toTxt||S.to):''));
 let fmT; function updFind(){ const l=$('#list'); if(l) l.innerHTML=tripList(); const c=$('#count'); if(c) c.textContent=countText();
   clearTimeout(fmT); fmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=findMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
@@ -616,9 +629,9 @@ function vFind(){
   const n=nFilters(), cur=S.fromPl&&S.fromPl.cur;
   return `<div id="mapwrap">${findMap()}</div>
   <div class="searchcard">
-    <div class="sline"><span class="sdot from"></span><input class="sinput small" id="qf" placeholder="Pickup" autocomplete="off" value="${esc(S.fromTxt||S.from)}" onfocus="this.select();openSugg('from',S.fromPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.from=S.fromTxt=this.value;S.fromPl=null;S.fromTyped=true;S.selTrip=null;updFind();openSugg('from',this.value)" aria-label="Pickup"><button class="loc" onclick="locateMe()" aria-label="Use my current location">${ic('locate',16)}</button></div>
+    <div class="sline"><span class="sdot from"></span><input class="sinput small" id="qf" enterkeyhint="search" onkeydown="sgKey('from',event)" placeholder="Pickup" autocomplete="off" value="${esc(S.fromTxt||S.from)}" onfocus="this.select();openSugg('from',S.fromPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.from=S.fromTxt=this.value;S.fromPl=null;S.fromTyped=true;S.selTrip=null;updFind();openSugg('from',this.value)" aria-label="Pickup"><button class="loc" onclick="locateMe()" aria-label="Use my current location">${ic('locate',16)}</button></div>
     ${cur?`<div class="ssub">${ic('locate',11)} Your location${S.loc&&S.loc.acc>300?' · approximate, tap to change':''}</div>`:''}
-    <div class="sline to"><span class="sdot"></span><input class="sinput" id="qt" placeholder="Where to?" autocomplete="off" value="${esc(S.toTxt||S.to)}" onfocus="this.select();openSugg('to',S.toPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.to=S.toTxt=this.value;S.toPl=null;S.selTrip=null;updFind();openSugg('to',this.value)" aria-label="Where to?"></div>
+    <div class="sline to"><span class="sdot"></span><input class="sinput" id="qt" enterkeyhint="search" onkeydown="sgKey('to',event)" placeholder="Where to?" autocomplete="off" value="${esc(S.toTxt||S.to)}" onfocus="this.select();openSugg('to',S.toPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.to=S.toTxt=this.value;S.toPl=null;S.selTrip=null;updFind();openSugg('to',this.value)" aria-label="Where to?"></div>
   </div>
   <div class="sugg" id="sg-find" hidden></div>
   <div class="row between listhead"><span class="meta" id="count">${countText()}</span><button class="fpill" aria-pressed="${n>0}" onclick="S.sheet={type:'filters'};render()">${ic('filter',14)} Filters${n?` <b>${n}</b>`:''}</button></div>
@@ -785,8 +798,8 @@ function vPost(){
   const steps=['Route','Time & seats','Price & rules'];
   let body='';
   if(st===1) body=`<div id="mapwrap">${postMap()}</div><p class="sub" id="dist">${distText()}</p>
-    <div class="two"><div class="field"><label for="pfa">Pickup spot</label><input class="input" id="pfa" autocomplete="off" value="${esc(p.fromA)}" placeholder="e.g. Kubwa" onfocus="this.select();openSugg('pfa',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.fromA=this.value;S.post.fromLL=null;S.post.touched=true;updPost();openSugg('pfa',this.value)"></div>
-    <div class="field"><label for="pta">Drop-off spot</label><input class="input" id="pta" autocomplete="off" value="${esc(p.toA)}" placeholder="e.g. Wuse 2" onfocus="this.select();openSugg('pta',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.toA=this.value;S.post.toLL=null;updPost();openSugg('pta',this.value)"></div></div>
+    <div class="two"><div class="field"><label for="pfa">Pickup spot</label><input class="input" id="pfa" enterkeyhint="search" onkeydown="sgKey('pfa',event)" autocomplete="off" value="${esc(p.fromA)}" placeholder="e.g. Kubwa" onfocus="this.select();openSugg('pfa',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.fromA=this.value;S.post.fromLL=null;S.post.touched=true;updPost();openSugg('pfa',this.value)"></div>
+    <div class="field"><label for="pta">Drop-off spot</label><input class="input" id="pta" enterkeyhint="search" onkeydown="sgKey('pta',event)" autocomplete="off" value="${esc(p.toA)}" placeholder="e.g. Wuse 2" onfocus="this.select();openSugg('pta',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.toA=this.value;S.post.toLL=null;updPost();openSugg('pta',this.value)"></div></div>
     <div class="sugg" id="sg-post" hidden></div>
     <details class="more"><summary>Going to another city?</summary><div class="two" style="margin-top:10px"><div class="field"><label for="pfc">From city</label><select class="input" id="pfc" onchange="S.post.fromC=this.value;S.post.fromLL=null;updPost()">${opts(p.fromC)}</select></div>
     <div class="field"><label for="ptc">To city</label><select class="input" id="ptc" onchange="S.post.toC=this.value;S.post.toLL=null;updPost()">${opts(p.toC)}</select></div></div></details>`;
