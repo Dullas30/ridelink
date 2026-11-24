@@ -409,3 +409,13 @@ details.past .pd{margin-top:10px;padding-top:4px}
 body.bare header.top{padding-top:max(6px,env(safe-area-inset-top))}
 body.bare nav.tabs{padding-bottom:max(8px,env(safe-area-inset-bottom))}
 body.bare .phone.splash #screen,body.bare .phone.onb #screen{padding-top:env(safe-area-inset-top)}
+/* real phones: steady, no zoom-on-tap, no double bounce, full height even when the address bar moves */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{overscroll-behavior:none}
+#screen{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+body.bare{height:100%;height:100dvh}
+body.bare .phone{height:100%!important;height:100dvh!important;min-height:0}
+body.bare input,body.bare select,body.bare textarea{font-size:16px!important}
+body.bare .otp input{font-size:24px!important}
+body.bare .amt .input{font-size:18px!important}
+body.bare .boot,body.bare #boot{position:fixed}
