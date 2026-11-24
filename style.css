@@ -375,7 +375,7 @@ details.past .pd{margin-top:10px;padding-top:4px}
 #ptr{position:absolute;top:0;left:0;right:0;height:56px;display:flex;align-items:center;justify-content:center;gap:8px;z-index:4;opacity:0;transform:translateY(-56px);pointer-events:none;font-size:11.5px;font-weight:600;color:var(--muted)}
 #ptr .ring{width:34px;height:34px;border-radius:50%;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.12);display:grid;place-items:center}
 #ptr img{width:22px;height:auto}
-#ptr.back,#view.back{transition:transform .25s ease,opacity .25s ease}
+#ptr.ptr-anim,#view.ptr-anim{transition:transform .25s ease,opacity .25s ease}
 /* live map bits */
 .gm .leaflet-container{font:inherit;background:#eef2f0}
 .gm .leaflet-tile-pane{filter:saturate(.75) hue-rotate(-8deg)}
