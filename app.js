@@ -621,10 +621,9 @@ function vProfile(){
 /* ---------- sheets ---------- */
 function sheetHTML(){
   const s=S.sheet; if(!s) return '';
-  if(s.type==='offer'){ const t=trip(s.tripId), o=s.again?offer(s.again):null, start=o?o.counter:r100(t.price*0.85);
+  if(s.type==='offer'){ const t=trip(s.tripId), o=s.again?offer(s.again):null, start=o?o.counter:Math.max(500,Math.round(t.price*0.85/500)*500);
     return `<div class="sheet" role="dialog" aria-label="Make an offer"><h2>${o?'Counter the driver':'Make an offer'}</h2><p class="sub">Listed price ${naira(t.price)} per seat. The driver can accept, counter or decline.</p>
-      <div class="field"><label for="oa">Your price (₦)</label><input class="input" id="oa" type="number" inputmode="numeric" value="${start}"></div>
-      <div class="chips" style="margin-bottom:4px">${[500,1000,1500].map(d=>t.price-d).filter(v=>v>0).map(v=>`<button class="chip" onclick="$('#oa').value=${v}">${naira(v)}</button>`).join('')}</div>
+      <div class="field"><label for="oa">Your price (₦)</label><div class="amt"><button aria-label="Lower by 500" onclick="bump(-500,${t.price})">−</button><input class="input" id="oa" type="number" inputmode="numeric" step="500" value="${start}"><button aria-label="Raise by 500" onclick="bump(500,${t.price})">+</button></div><span class="hint">Each tap changes your offer by ₦500.</span></div>
       <div class="btns"><button class="btn ghost" onclick="S.sheet=null;render()">Cancel</button><button class="btn" onclick="submitOffer(${t.id},${s.again||0})">Send offer</button></div></div>`; }
   if(s.type==='counter'){ const i=S.incoming.find(x=>x.id===s.inc), t=trip(i.tripId);
     return `<div class="sheet" role="dialog" aria-label="Counter offer"><h2>Counter ${esc(i.name.split(' ')[0])}</h2><p class="sub">They offered ${naira(i.amount)}. Your listed price is ${naira(t.price)}.</p>
@@ -659,6 +658,7 @@ function sheetHTML(){
       <div class="btns" style="flex-direction:column"><button class="btn bad" onclick="S.sheet=null;toast('Demo: this would call 112')">Call 112</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: your emergency contact would be alerted')">Alert my emergency contact</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: live location would be shared')">Share live location</button><button class="btn ghost" onclick="S.sheet=null;render()">Close</button></div></div>`;
   return '';
 }
+function bump(d,max){ const el=$('#oa'); const v=Math.min(max,Math.max(500,Math.round(((+el.value||0)+d)/500)*500)); el.value=v; }
 function submitOffer(tripId, again){ const v=+$('#oa').value, t=trip(tripId); if(!(v>0)){ toast('Enter an amount'); return; } if(v>t.price){ toast('Offer is above the listed price. Use the listed price instead.'); return; } sendOffer(tripId,v,again||undefined); }
 function submitCounter(id){ const v=+$('#oa').value, i=S.incoming.find(x=>x.id===id), t=trip(i.tripId); if(!(v>0)){ toast('Enter an amount'); return; }
   i.status='countered'; i.counter=v; S.sheet=null; render();

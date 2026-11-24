@@ -366,3 +366,8 @@ details.past .pd{margin-top:10px;padding-top:4px}
 #boot .bar i{display:block;height:100%;width:40%;border-radius:3px;background:#0a8a12;animation:bootbar 1.1s ease-in-out infinite}
 @keyframes bootin{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes bootbar{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
+.amt{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px;align-items:center}
+.amt button{height:44px;border-radius:12px;background:var(--brand-soft);color:var(--brand);font-size:22px;font-weight:700;line-height:1}
+.amt button:active{transform:scale(.95)}
+.amt .input{text-align:center;font-family:var(--display);font-size:18px;font-weight:700;-moz-appearance:textfield}
+.amt .input::-webkit-outer-spin-button,.amt .input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
