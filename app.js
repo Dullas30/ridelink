@@ -672,8 +672,8 @@ function submitRate(bid){ const b=S.bookings.find(x=>x.id===bid); if(b) b.rated=
 function renderHeader(){
   $('#hdr').innerHTML=`<button class="logo" onclick="goHome()" aria-label="RideLink home"><img class="full" src="assets/logo.png" alt="RideLink"><img class="mark" src="assets/logo-mark.png" alt="RideLink"></button>
   <div class="seg" role="tablist" aria-label="Mode" data-m="${S.mode}"><span class="thumb"></span>
-    <button role="tab" aria-selected="${S.mode==='passenger'}" onclick="setMode('passenger')">${ic('profile',14)}<span class="l1">Passenger</span><span class="l2">Ride</span></button>
-    <button role="tab" aria-selected="${S.mode==='driver'}" onclick="setMode('driver')">${ic('car',14)}<span class="l1">Driver</span><span class="l2">Drive</span></button></div>
+    <button role="tab" aria-selected="${S.mode==='passenger'}" onclick="setMode('passenger')">${ic('profile',14)}<span class="l1">Passenger</span></button>
+    <button role="tab" aria-selected="${S.mode==='driver'}" onclick="setMode('driver')">${ic('car',14)}<span class="l1">Driver</span></button></div>
   <button class="me" onclick="go('profile')" aria-label="Profile">${face(S.user)}</button>`;
 }
 const TABS = {
