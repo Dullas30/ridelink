@@ -89,7 +89,7 @@ const S = {
     notif:true,autoShare:true,places:{home:'Wuse 2, Abuja',work:'Central Business District, Abuja'},
     pStats:{trips:23,rating:4.9,saved:18400},dStats:{trips:42,rating:4.9,accept:96},bank:'GTBank · •••• 4821',offersOn:true},
   onb:{step:'splash',only:null,roles:['passenger'],phone:'',name:'',nin:'',licNo:'',skipped:false,docs:{lic:null,selfie:null,carFront:null,carBack:null,carIn:null,papers:null},veh:{make:'',model:'',color:'',plate:'',seats:3}},
-  from:'Abuja', to:'Kaduna', filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
+  from:'Abuja', to:'Kaduna', fromTxt:'', toTxt:'', fromPl:null, toPl:null, fromTyped:false, loc:null, filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
   ptab:'up', dtab:'up', track:null, lastBooking:null, nextId:100,
   trips:[
     {id:1,driver:'Musa Abdullahi',rating:4.9,count:128,fromC:'abuja',toC:'kaduna',from:'Abuja · Wuse 2',to:'Kaduna · Barnawa',when:'Tomorrow · 7:00 AM',seats:3,cap:3,price:6500,neg:true,boosted:true,car:'Toyota Camry, silver',rules:['AC','Luggage ok','No smoking']},
@@ -154,30 +154,134 @@ function mapSVG(o){
 }
 const mapBox = (inner, tag='Map preview') => `<div class="map"><div id="mapbox">${inner}</div><span class="maptag">${tag}</span></div>`;
 
-/* ---------- Google Maps ----------
-   'js'    : Maps JavaScript API with your key from config.js: live map, road route from the Routes library, moving car.
-   'embed' : no key needed: the Google Maps embed shows the route.
-   'svg'   : the drawn preview above, used only where a page is not allowed to load Google (for example a shared preview link).
-   Maps sit in #maplayer and are moved over their slot after each render, so they never reload when the screen redraws. */
+/* ---------- live map ----------
+   'google' : Google Maps (key in config.js), styled to match RideLink. Routes, Places and Geocoding APIs.
+   'osm'    : no key needed: OpenStreetMap streets styled to match RideLink, OSRM for road routes, Photon for place search.
+   'svg'    : the drawn preview above, used only where a page may not load map tiles (for example the shared preview link).
+   Your position comes from the phone's GPS and updates as you move (the pulsing dot). Maps sit in #maplayer and are moved
+   over their slot after each render, so they never reload when the screen redraws. */
 const CFG=window.RIDELINK_CONFIG||{}, GKEY=String(CFG.GOOGLE_MAPS_API_KEY||'').trim();
-let MAPMODE=GKEY?'js':'embed', gReady=false;
-const MAPS={}, mapEls=new Map();
+let MAPMODE=GKEY?'google':(window.L?'osm':'svg'), gReady=false;
+const MAPS={}, mapEls=new Map(), geoCache={};
+const NG_BBOX='2.6,4.2,14.7,13.9';
+const LLc=c=>({lat:c.lat,lng:c.lon});
 const place=(area,city)=>[area,city].filter(x=>x&&String(x).trim()).join(', ')+(area||city?', Nigeria':'');
 const cityKey=n=>Object.keys(CITIES).find(k=>CITIES[k].n.toLowerCase()===String(n||'').trim().toLowerCase())||null;
+const nearestCity=ll=>{ let best='abuja',bd=1e9; Object.entries(CITIES).forEach(([k,c])=>{ const d=(c.lat-ll.lat)**2+(c.lon-ll.lng)**2; if(d<bd){bd=d;best=k;} }); return best; };
+/* which of our cities a place belongs to (FCT counts as Abuja) */
+const cityOf=(parts,ll)=>{ const txt=parts.filter(Boolean).join(' ').toLowerCase(); if(/federal capital|\bfct\b|abuja/.test(txt)) return 'Abuja';
+  const k=Object.keys(CITIES).find(k=>txt.includes(CITIES[k].n.toLowerCase())); return k?CITIES[k].n:(ll?CITIES[nearestCity(ll)].n:''); };
 const tripPlaces=t=>{ const [c1,a1]=t.from.split(' · '), [c2,a2]=t.to.split(' · '); return {a:place(a1,c1),b:place(a2,c2),ac:t.fromC,bc:t.toC}; };
-const mapKey=sp=>(sp.a||'')+'|'+(sp.b||'');
+const llKey=ll=>ll?ll.lat.toFixed(4)+','+ll.lng.toFixed(4):'';
+const mapKey=sp=>(sp.aLL?llKey(sp.aLL):sp.a||'')+'|'+(sp.bLL?llKey(sp.bLL):sp.b||'');
 function gmap(sp, tag){
   if(MAPMODE==='svg') return mapBox(mapSVG({routes:sp.ac&&sp.bc&&sp.ac!==sp.bc?[{a:sp.ac,b:sp.bc,sel:true}]:[],car:sp.car}), tag||'Map preview');
   const k=mapKey(sp); MAPS[k]=Object.assign(MAPS[k]||{},sp);
   return `<div class="map g"><div class="gslot" data-key="${esc(k)}"></div>${tag?`<span class="maptag">${esc(tag)}</span>`:''}</div>`;
 }
+const brandCol=()=>getComputedStyle($('#phone')).getPropertyValue('--brand').trim()||'#0a5c4a';
+/* --- map adapters: same small interface for Google and Leaflet --- */
+const GSTYLE=[{elementType:'geometry',stylers:[{color:'#eef2f0'}]},{elementType:'labels.icon',stylers:[{visibility:'off'}]},{elementType:'labels.text.fill',stylers:[{color:'#5b6a64'}]},{elementType:'labels.text.stroke',stylers:[{color:'#f7faf8'}]},
+  {featureType:'poi',stylers:[{visibility:'off'}]},{featureType:'transit',stylers:[{visibility:'off'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#ffffff'}]},
+  {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#dde7e2'}]},{featureType:'road.arterial',elementType:'labels',stylers:[{visibility:'simplified'}]},{featureType:'landscape.natural',stylers:[{color:'#e4ede8'}]},{featureType:'water',stylers:[{color:'#cfe2e8'}]},{featureType:'administrative',elementType:'geometry.stroke',stylers:[{color:'#c9d6d0'}]}];
+function gAdapter(el){
+  const map=new google.maps.Map(el,{center:{lat:9.07,lng:7.48},zoom:11,disableDefaultUI:true,gestureHandling:'greedy',clickableIcons:false,styles:GSTYLE,backgroundColor:'#eef2f0'});
+  const P=p=>({lat:p.lat,lng:p.lng}); let user,acc,car;
+  return { view:(ll,z)=>{ map.setCenter(P(ll)); map.setZoom(z); }, fit:pts=>{ const b=new google.maps.LatLngBounds(); pts.forEach(p=>b.extend(P(p))); map.fitBounds(b,36); },
+    line:(path,col)=>{ new google.maps.Polyline({map,path:path.map(P),strokeColor:'#ffffff',strokeWeight:9,zIndex:1}); new google.maps.Polyline({map,path:path.map(P),strokeColor:col,strokeWeight:5,zIndex:2}); },
+    pin:(ll,fill,col)=>new google.maps.Marker({map,position:P(ll),zIndex:5,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6.5,fillColor:fill,fillOpacity:1,strokeColor:col,strokeWeight:3}}),
+    user:ll=>{ if(!user){ acc=new google.maps.Circle({map,center:P(ll),radius:ll.acc||30,strokeOpacity:0,fillColor:'#2f80ed',fillOpacity:.12,clickable:false});
+        user=new google.maps.Marker({map,position:P(ll),zIndex:9,clickable:false,icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#2f80ed',fillOpacity:1,strokeColor:'#fff',strokeWeight:3}}); }
+      else { user.setPosition(P(ll)); acc.setCenter(P(ll)); acc.setRadius(ll.acc||30); } },
+    car:(ll,rot,col)=>{ const icon={path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:6,fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2,rotation:rot};
+      if(!car) car=new google.maps.Marker({map,position:P(ll),zIndex:8,icon}); else { car.setPosition(P(ll)); car.setIcon(icon); } },
+    pan:(ll,z)=>{ map.panTo(P(ll)); if(z) map.setZoom(z); }, onDrag:cb=>map.addListener('dragstart',cb), resize:()=>{} };
+}
+function lAdapter(el){
+  const map=L.map(el,{zoomControl:false,attributionControl:true,zoomSnap:.5}).setView([9.07,7.48],11);
+  map.attributionControl.setPrefix(false);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+  const A=p=>[p.lat,p.lng]; let user,acc,car;
+  const carIcon=(rot,col)=>L.divIcon({className:'lcar',iconSize:[26,26],html:`<svg viewBox="0 0 26 26" style="transform:rotate(${rot}deg)"><path d="M13 2l8 20-8-5-8 5z" fill="${col}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>`});
+  return { view:(ll,z)=>map.setView(A(ll),z), fit:pts=>map.fitBounds(pts.map(A),{padding:[28,28]}),
+    line:(path,col)=>{ L.polyline(path.map(A),{color:'#fff',weight:9,opacity:1,interactive:false}).addTo(map); L.polyline(path.map(A),{color:col,weight:5,opacity:1,interactive:false}).addTo(map); },
+    pin:(ll,fill,col)=>L.circleMarker(A(ll),{radius:6.5,color:col,weight:3,fillColor:fill,fillOpacity:1,interactive:false}).addTo(map),
+    user:ll=>{ if(!user){ acc=L.circle(A(ll),{radius:ll.acc||30,stroke:false,fillColor:'#2f80ed',fillOpacity:.12,interactive:false}).addTo(map);
+        user=L.marker(A(ll),{icon:L.divIcon({className:'udot',iconSize:[20,20],html:'<i></i>'}),interactive:false,zIndexOffset:900}).addTo(map); }
+      else { user.setLatLng(A(ll)); acc.setLatLng(A(ll)); acc.setRadius(ll.acc||30); } },
+    car:(ll,rot,col)=>{ if(!car) car=L.marker(A(ll),{icon:carIcon(rot,col),interactive:false,zIndexOffset:800}).addTo(map); else { car.setLatLng(A(ll)); car.setIcon(carIcon(rot,col)); } },
+    pan:(ll,z)=>map.setView(A(ll),z||map.getZoom(),{animate:true}), onDrag:cb=>map.on('dragstart',cb), resize:()=>map.invalidateSize() };
+}
+/* --- places: search, coordinates, address for a GPS point --- */
+async function geocode(q){
+  if(!q) return null; if(q in geoCache) return geoCache[q]; let r=null;
+  try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({address:q,region:'ng'}); const l=res.results[0].geometry.location; r={lat:l.lat(),lng:l.lng()}; }
+    else { const j=await (await fetch('https://photon.komoot.io/api/?limit=1&lang=en&bbox='+NG_BBOX+'&q='+encodeURIComponent(q.replace(/, Nigeria$/,'')))).json(); const f=j.features&&j.features[0]; if(f) r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; } }catch(e){}
+  return geoCache[q]=r;
+}
+async function reverse(ll){
+  try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
+      const g=t=>(r.address_components.find(c=>c.types.includes(t))||{}).long_name; const area=g('neighborhood')||g('sublocality')||g('route')||g('locality');
+      return {label:[area,g('locality')].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),city:cityOf([g('locality'),g('administrative_area_level_1')],ll)}; }
+    const j=await (await fetch(`https://photon.komoot.io/reverse?lang=en&lat=${ll.lat}&lon=${ll.lng}`)).json(); const p=(j.features&&j.features[0]||{}).properties||{};
+    const area=p.district||p.locality||p.street||p.name; return {label:[area,p.city||p.county].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),city:cityOf([p.city,p.county,p.state],ll)};
+  }catch(e){ return {label:'',city:CITIES[nearestCity(ll)].n}; }
+}
+const localSugg=q=>{ q=q.trim().toLowerCase(); const seen=new Set(), out=[];
+  S.trips.forEach(t=>[t.from,t.to].forEach(s=>{ const [c,a]=s.split(' · '); const lab=a||c; if(!seen.has(s)&&(!q||s.toLowerCase().includes(q))){ seen.add(s); out.push({label:lab,sub:a?c:'Nigeria',city:c}); } }));
+  Object.values(CITIES).forEach(c=>{ if(!seen.has(c.n)&&(!q||c.n.toLowerCase().includes(q))){ seen.add(c.n); out.push({label:c.n,sub:'Nigeria',city:c.n,ll:LLc(c)}); } });
+  return out.slice(0,6); };
+async function suggest(q){
+  if(q.trim().length<2) return localSugg(q);
+  try{
+    if(MAPMODE==='google'){ const {AutocompleteSuggestion}=await google.maps.importLibrary('places');
+      const {suggestions}=await AutocompleteSuggestion.fetchAutocompleteSuggestions({input:q,includedRegionCodes:['ng'],...(S.loc?{origin:{lat:S.loc.lat,lng:S.loc.lng}}:{})});
+      const l=suggestions.filter(s=>s.placePrediction).slice(0,6).map(s=>({label:s.placePrediction.mainText.text,sub:s.placePrediction.secondaryText?s.placePrediction.secondaryText.text:'',pred:s.placePrediction}));
+      if(l.length) return l; }
+    else if(MAPMODE==='osm'){ const bias=S.loc?`&lat=${S.loc.lat}&lon=${S.loc.lng}`:'&lat=9.07&lon=7.48';
+      const j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
+      const l=(j.features||[]).map(f=>{ const p=f.properties, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
+        return {label:p.name||p.street||p.city,sub:[p.street&&p.name!==p.street?p.street:'',p.district||p.locality,p.city||p.county,p.state].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),ll,city:cityOf([p.city,p.county,p.state,p.name],ll)}; }).filter(x=>x.label);
+      if(l.length) return l; }
+  }catch(e){}
+  return localSugg(q);
+}
+async function resolveSugg(s){
+  if(s.pred){ const pl=s.pred.toPlace(); await pl.fetchFields({fields:['location','addressComponents']}); const ll={lat:pl.location.lat(),lng:pl.location.lng()};
+    const comps=(pl.addressComponents||[]).map(c=>c.longText); return Object.assign(s,{ll,city:cityOf(comps,ll)}); }
+  if(!s.ll){ s.ll=await geocode(place(s.label===s.city?'':s.label,s.city)); }
+  if(!s.city&&s.ll) s.city=CITIES[nearestCity(s.ll)].n;
+  return s;
+}
+/* --- route: real roads when we can, a straight line otherwise --- */
+async function routePath(A,B,sp){
+  try{
+    if(MAPMODE==='google'){ const {Route}=await google.maps.importLibrary('routes');
+      const {routes}=await Route.computeRoutes({origin:A,destination:B,travelMode:'DRIVING',fields:['path']});
+      const r=routes&&routes[0]; if(r&&r.path&&r.path.length>1) return r.path.map(p=>({lat:typeof p.lat==='function'?p.lat():p.lat,lng:typeof p.lng==='function'?p.lng():p.lng})); }
+    else { const j=await (await fetch(`https://router.project-osrm.org/route/v1/driving/${A.lng},${A.lat};${B.lng},${B.lat}?overview=full&geometries=geojson`)).json();
+      const c=j.routes&&j.routes[0]&&j.routes[0].geometry.coordinates; if(c&&c.length>1) return c.map(([lng,lat])=>({lat,lng})); }
+  }catch(e){}
+  return [A,B];
+}
 function createMap(k){
-  const sp=MAPS[k]; if(!sp) return null; const el=document.createElement('div'); el.className='gm'; const m={el};
-  if(MAPMODE==='embed'){
-    const q=sp.a&&sp.b?'saddr='+encodeURIComponent(sp.a)+'&daddr='+encodeURIComponent(sp.b):'q='+encodeURIComponent(sp.a||sp.b||'Nigeria')+(sp.a||sp.b?'':'&z=6');
-    el.innerHTML=`<iframe title="Google Map" loading="eager" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?${q}&hl=en&output=embed"></iframe>`;
-  } else if(gReady) initJs(m,sp);
-  return m;
+  const sp=MAPS[k]; if(!sp) return null;
+  const el=document.createElement('div'); el.className='gm'; el.innerHTML=`<div class="gmc"></div><button class="mloc" aria-label="Show my location">${ic('locate',18)}</button>`;
+  const m={el,k,follow:false}; el.querySelector('.mloc').onclick=()=>{ m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
+  if(MAPMODE==='osm'||gReady) initMap(m); return m;
+}
+async function initMap(m){
+  if(m.api) return; const sp=MAPS[m.k], host=m.el.querySelector('.gmc');
+  m.api=MAPMODE==='google'?gAdapter(host):lAdapter(host); m.api.onDrag(()=>{ m.follow=false; m.el.classList.remove('following'); });
+  requestAnimationFrame(()=>m.api.resize());
+  const col=brandCol();
+  if(S.loc) m.api.user(S.loc);
+  const A=sp.aLL||(sp.a&&await geocode(sp.a))||(sp.ac&&LLc(CITIES[sp.ac]))||null, B=sp.bLL||(sp.b&&await geocode(sp.b))||(sp.bc&&LLc(CITIES[sp.bc]))||null;
+  if(A&&B&&llKey(A)!==llKey(B)){ m.api.view(A,10); m.path=await routePath(A,B,sp); m.api.line(m.path,col); m.api.pin(A,'#fff',col); m.api.pin(B,col,col); m.api.fit(m.path); }
+  else if(A||B){ const P=A||B; m.api.pin(P,col,col); m.api.view(P,13); }
+  else if(S.loc){ m.follow=true; m.el.classList.add('following'); m.api.view(S.loc,15); }
+  else m.api.view({lat:9.07,lng:7.48},11);
+  if(MAPS[m.k].car!=null) moveCar(m,MAPS[m.k].car);
 }
 function syncMaps(){
   const sc=$('#screen'), layer=$('#maplayer'); if(!sc||!layer) return;
@@ -188,50 +292,76 @@ function syncMaps(){
   slots.forEach(s=>{ const k=s.dataset.key; let m=mapEls.get(k);
     if(!m){ m=createMap(k); if(!m) return; mapEls.set(k,m); layer.appendChild(m.el);
       if(mapEls.size>6){ for(const [ok,om] of mapEls){ if(!want.has(ok)){ om.el.remove(); mapEls.delete(ok); if(mapEls.size<=6) break; } } } }
-    const r=s.getBoundingClientRect();
-    Object.assign(m.el.style,{top:((r.top-R.top)/z+sc.scrollTop)+'px',left:((r.left-R.left)/z)+'px',width:(r.width/z)+'px',height:(r.height/z)+'px'});
-    if(m.map&&!m.fitted){ m.fitted=true; google.maps.event.trigger(m.map,'resize'); if(m.bounds) m.map.fitBounds(m.bounds,36); }
+    const r=s.getBoundingClientRect(), w=(r.width/z)+'px', h=(r.height/z)+'px', sized=m.el.style.width!==w||m.el.style.height!==h;
+    Object.assign(m.el.style,{top:((r.top-R.top)/z+sc.scrollTop)+'px',left:((r.left-R.left)/z)+'px',width:w,height:h});
+    if(sized&&m.api) m.api.resize();
   });
 }
 function resetMaps(mode){ MAPMODE=mode; mapEls.forEach(m=>m.el.remove()); mapEls.clear(); render(); }
-document.addEventListener('securitypolicyviolation',e=>{ if(MAPMODE!=='svg'&&/google/i.test(e.blockedURI||'')) resetMaps('svg'); });
-async function initJs(m,sp){
-  if(m.map) return;
-  const brand=getComputedStyle($('#phone')).getPropertyValue('--brand').trim()||'#0a5c4a';
-  const A=sp.ac&&CITIES[sp.ac], B=sp.bc&&CITIES[sp.bc], ll=c=>({lat:c.lat,lng:c.lon});
-  const map=new google.maps.Map(m.el,{center:A?ll(A):{lat:9.08,lng:8.68},zoom:A?8:6,disableDefaultUI:true,zoomControl:true,gestureHandling:'cooperative',clickableIcons:false});
-  m.map=map; let path=A&&B?[ll(A),ll(B)]:A?[ll(A)]:B?[ll(B)]:[];
-  try{ if(sp.a&&sp.b){ const {Route}=await google.maps.importLibrary('routes');
-    const {routes}=await Route.computeRoutes({origin:sp.a,destination:sp.b,travelMode:'DRIVING',fields:['path']});
-    const r=routes&&routes[0]; if(r&&r.path&&r.path.length>1) path=r.path.map(p=>({lat:typeof p.lat==='function'?p.lat():p.lat,lng:typeof p.lng==='function'?p.lng():p.lng})); } }catch(e){ /* no Routes access: straight line between the cities */ }
-  const dot=(pos,fill)=>new google.maps.Marker({map,position:pos,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6,fillColor:fill,fillOpacity:1,strokeColor:brand,strokeWeight:3}});
-  if(path.length>1) new google.maps.Polyline({map,path,strokeColor:brand,strokeWeight:5,strokeOpacity:.9,geodesic:true});
-  if(path.length){ dot(path[0],'#fff'); if(path.length>1){ dot(path[path.length-1],brand); m.bounds=new google.maps.LatLngBounds(); path.forEach(p=>m.bounds.extend(p)); map.fitBounds(m.bounds,36); } }
-  m.path=path; m.car=new google.maps.Marker({map,visible:false,zIndex:9,icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:5,fillColor:brand,fillOpacity:1,strokeColor:'#fff',strokeWeight:2,rotation:0}});
-  if(MAPS[mapKey(sp)]&&MAPS[mapKey(sp)].car!=null) moveCar(m,MAPS[mapKey(sp)].car);
-}
+document.addEventListener('securitypolicyviolation',e=>{ if(MAPMODE!=='svg'&&/google|cartocdn|openstreetmap|komoot|osrm/i.test(e.blockedURI||'')) resetMaps('svg'); });
 function moveCar(m,t){
-  const P=m.path; if(!m.car||!P||P.length<2) return;
+  const P=m.path; if(!m.api||!P||P.length<2) return;
   const seg=[]; let tot=0; for(let i=1;i<P.length;i++){ const d=Math.hypot(P[i].lat-P[i-1].lat,P[i].lng-P[i-1].lng); seg.push(d); tot+=d; }
   let goal=tot*Math.max(0,Math.min(1,t)), i=0; while(i<seg.length-1&&goal>seg[i]){ goal-=seg[i]; i++; }
   const f=seg[i]?goal/seg[i]:0, a=P[i], b=P[i+1], pos={lat:a.lat+(b.lat-a.lat)*f,lng:a.lng+(b.lng-a.lng)*f};
-  const ic=m.car.getIcon(); ic.rotation=Math.atan2(b.lng-a.lng,b.lat-a.lat)*180/Math.PI; m.car.setIcon(ic); m.car.setPosition(pos); m.car.setVisible(true);
+  m.api.car(pos,Math.atan2(b.lng-a.lng,b.lat-a.lat)*180/Math.PI,brandCol());
 }
-if(MAPMODE==='js'){
-  window.__gmReady=()=>{ gReady=true; mapEls.forEach((m,k)=>initJs(m,MAPS[k])); };
-  window.gm_authFailure=()=>{ resetMaps('embed'); toast('Google Maps did not accept the key. Showing the basic Google map.'); };
-  const g=document.createElement('script'); g.async=true; g.onerror=()=>resetMaps('embed');
+if(MAPMODE==='google'){
+  window.__gmReady=()=>{ gReady=true; mapEls.forEach(m=>initMap(m)); };
+  window.gm_authFailure=()=>{ resetMaps(window.L?'osm':'svg'); toast('Google Maps did not accept the key. Showing the free map.'); };
+  const g=document.createElement('script'); g.async=true; g.onerror=()=>resetMaps(window.L?'osm':'svg');
   g.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(GKEY)+'&v=weekly&loading=async&callback=__gmReady';
   document.head.appendChild(g);
 }
-/* "Use my location": picks the nearest city we serve */
-function locateMe(){
-  if(!navigator.geolocation){ toast('Location is not available here. Type your city.'); return; }
-  toast('Finding your location…');
-  navigator.geolocation.getCurrentPosition(p=>{ const {latitude:la,longitude:lo}=p.coords; let best='abuja',bd=1e9;
-    Object.entries(CITIES).forEach(([k,c])=>{ const d=(c.lat-la)**2+(c.lon-lo)**2; if(d<bd){bd=d;best=k;} });
-    S.from=CITIES[best].n; S.selTrip=null; toast('Leaving from '+CITIES[best].n+'. You can change it.'); },
-    ()=>toast('We could not get your location. Type your city instead.'),{timeout:9000,maximumAge:600000});
+/* --- your live position: follows you as you move --- */
+const LOC={watch:null,started:false,denied:false};
+function startLoc(ask){
+  if(!navigator.geolocation){ if(ask) toast('Location is not available on this device. Type your area instead.'); return; }
+  if(LOC.watch!==null){ if(ask&&!S.loc) toast('Finding your location…'); return; }
+  if(ask) toast('Finding your location…');
+  try{ LOC.watch=navigator.geolocation.watchPosition(p=>{ const first=!S.loc; S.loc=Object.assign(S.loc||{},{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy});
+      mapEls.forEach(m=>{ if(m.api){ m.api.user(S.loc); if(m.follow) m.api.pan(S.loc); } });
+      if(first) firstFix(ask); },
+    ()=>{ LOC.watch=null; LOC.denied=true; if(ask) toast('Location is off. Allow it in your browser, or type your area.'); },
+    {enableHighAccuracy:true,maximumAge:5000,timeout:20000}); }catch(e){ LOC.watch=null; }
+}
+async function firstFix(force){
+  const r=await reverse(S.loc); S.loc.label=r.label; S.loc.city=r.city||CITIES[nearestCity(S.loc)].n;
+  if(force||(!S.fromPl&&!S.fromTyped)) useCurrent('from',!force);
+  if(S.post&&!S.post.fromLL&&!S.post.touched){ const k=cityKey(S.loc.city); if(k){ S.post.fromC=k; S.post.fromA=r.label.split(',')[0]||S.post.fromA; S.post.fromLL={lat:S.loc.lat,lng:S.loc.lng}; } }
+}
+function useCurrent(field,quiet){
+  if(!S.loc){ startLoc(true); return; }
+  const L0={lat:S.loc.lat,lng:S.loc.lng};
+  if(field==='from'){ S.fromPl={label:'Current location',sub:S.loc.label||'',ll:L0,cur:true}; S.fromTxt='Current location'; S.from=S.loc.city||''; S.selTrip=null; }
+  if(field==='pfa'){ S.post.fromA=(S.loc.label||'').split(',')[0]||'Current location'; S.post.fromLL=L0; const k=cityKey(S.loc.city); if(k) S.post.fromC=k; S.post.touched=true; }
+  closeSugg(); const a=document.activeElement; if(!(a&&a.matches&&a.matches('input'))||!quiet) render();
+  if(!quiet) toast('Using your current location'+(S.loc.label?': '+S.loc.label:''));
+}
+function locateMe(){ if(S.loc) useCurrent('from'); else { LOC.wantFrom=true; startLoc(true); setTimeout(()=>{ if(S.loc&&LOC.wantFrom){ LOC.wantFrom=false; useCurrent('from'); } },2500); } }
+/* --- suggestions dropdown for From, To, Pickup, Drop-off --- */
+let sgT, SG={field:null,list:[]};
+function openSugg(field,q){
+  SG.field=field; clearTimeout(sgT);
+  sgT=setTimeout(async()=>{ const list=await suggest(q||''); if(SG.field!==field) return; SG.list=list; drawSugg(); }, (q||'').length<2?0:280);
+}
+function drawSugg(){
+  const box=$('#sg-'+(SG.field==='from'||SG.field==='to'?'find':'post')); if(!box) return;
+  const cur=(SG.field==='from'||SG.field==='pfa');
+  const rows=(cur?[`<button class="sg cur" onpointerdown="event.preventDefault()" onclick="useCurrent('${SG.field}')"><span class="ico">${ic('locate',16)}</span><span class="grow"><b>Current location</b><small>${S.loc&&S.loc.label?esc(S.loc.label):LOC.denied?'Location is off':'Use where you are now'}</small></span></button>`]:[])
+    .concat(SG.list.map((s,i)=>`<button class="sg" onpointerdown="event.preventDefault()" onclick="pickSugg(${i})"><span class="ico">${ic('pin',16)}</span><span class="grow"><b>${esc(s.label)}</b><small>${esc(s.sub||'')}</small></span></button>`));
+  box.innerHTML=rows.join(''); box.hidden=!rows.length;
+}
+function blurSugg(){ const a=document.activeElement; if(!(a&&a.matches&&a.matches('#qf,#qt,#pfa,#pta'))) closeSugg(); }
+function closeSugg(){ SG.field=null; document.querySelectorAll('.sugg').forEach(b=>{ b.hidden=true; b.innerHTML=''; }); }
+async function pickSugg(i){
+  const f=SG.field, it=SG.list[i]; if(!it) return; const s=await resolveSugg(it); if(!s) return; closeSugg();
+  const city=s.city||'', lab=s.label;
+  if(f==='from'){ S.fromPl={label:lab,sub:s.sub,ll:s.ll}; S.fromTxt=lab; S.from=city||lab; S.fromTyped=true; }
+  if(f==='to'){ S.toPl={label:lab,sub:s.sub,ll:s.ll}; S.toTxt=lab; S.to=city||lab; }
+  if(f==='pfa'||f==='pta'){ const k=cityKey(city), p=S.post; p.touched=true;
+    if(f==='pfa'){ p.fromA=lab===city?'':lab; p.fromLL=s.ll; if(k) p.fromC=k; } else { p.toA=lab===city?'':lab; p.toLL=s.ll; if(k) p.toC=k; } }
+  S.selTrip=null; render();
 }
 
 /* ---------- navigation ---------- */
@@ -265,10 +395,10 @@ function finishOnb(){
   const o=S.onb, drv=o.roles.includes('driver')&&!o.skipped;
   if(o.only){ S.user.driverVerified=true; if(!S.user.roles.includes('driver'))S.user.roles.push('driver'); S.user.veh={...o.veh}; S.mode='driver'; }
   else { S.user=Object.assign(S.user,{name:o.name||S.user.name,phone:o.phone?('0'+o.phone.replace(/^0/,'')):S.user.phone,roles:drv?['passenger','driver']:['passenger'],driverVerified:drv,veh:drv?{...o.veh}:S.user.veh,since:'Nov 2026'});
-    if(!drv) S.user.driverVerified=false; S.mode='passenger'; }
+    if(!drv) S.user.driverVerified=false; S.mode=drv&&!o.roles.includes('passenger')?'driver':'passenger'; }
   S.onbOn=false; S.view=HOME[S.mode]; render();
 }
-function setRoles(both){ S.onb.roles=both?['passenger','driver']:['passenger']; render(); }
+function toggleRole(r){ const a=S.onb.roles, i=a.indexOf(r); i>=0?a.splice(i,1):a.push(r); render(); }
 function onOtp(i,el){
   el.value=el.value.replace(/\D/g,'').slice(-1);
   if(el.value && i<3) $('#o'+(i+1)).focus();
@@ -306,11 +436,9 @@ function vOnb(){
     `<div class="top"><button class="back" style="margin:0" onclick="prevStep()" aria-label="Back">${ic('back',18)}</button><div class="steps">${q.filter(s=>!NOBAR.includes(s)).map(s=>`<i class="${q.indexOf(s)<=i?'on':''}"></i>`).join('')}</div><button class="skip" onclick="${kyc?'asPassenger()':'skipOnb()'}">${kyc?'Later':'Skip'}</button></div>`;
   const asP = `<button class="btn ghost" style="margin-top:8px" onclick="asPassenger()">Continue as passenger</button>`;
   let b='';
-  if(o.step==='role'){ const both=o.roles.includes('driver');
-    b=`<h2>How will you use RideLink?</h2><p class="sub">You can change this later in Profile.</p>
-    <button class="role" aria-pressed="${!both}" onclick="setRoles(false)"><span class="ico">${ic('profile',20)}</span><div><div class="name">Passenger</div><div class="meta">Find rides and book seats. Takes a minute.</div></div></button>
-    <button class="role" aria-pressed="${both}" onclick="setRoles(true)"><span class="ico">${ic('car',20)}</span><div><div class="name">Passenger and driver</div><div class="meta">Also post trips and earn. Needs ID and car checks.</div></div></button>
-    <button class="btn" style="margin-top:8px" onclick="nextStep()">Continue</button>`; }
+  if(o.step==='role') b=`<h2>How will you use RideLink?</h2><p class="sub">Pick one or both. Drivers need ID and car checks.</p>
+    ${[['passenger','Passenger','Find a ride and book a seat','profile'],['driver','Driver','Post trips and earn from empty seats','car']].map(([k,t,d,icn])=>`<button class="role" aria-pressed="${o.roles.includes(k)}" onclick="toggleRole('${k}')"><span class="ico">${ic(icn,20)}</span><div class="grow"><div class="name">${t}</div><div class="meta">${d}</div></div><span class="tick">${ic('check',14)}</span></button>`).join('')}
+    <button class="btn" style="margin-top:8px" ${o.roles.length?'':'disabled'} onclick="nextStep()">Continue</button>`;
   if(o.step==='phone') b=`<h2>Your phone number</h2><p class="sub">We send a code by SMS to confirm it is you.</p>
     <div class="field"><label for="ph">Mobile number</label><div class="phonefield"><span class="pre">+234</span><input class="input" id="ph" type="tel" inputmode="numeric" maxlength="11" placeholder="803 000 0000" value="${esc(o.phone)}" oninput="S.onb.phone=this.value.replace(/\\D/g,'');$('#phgo').disabled=S.onb.phone.length<10"></div></div>
     <button class="btn" id="phgo" ${o.phone.length>=10?'':'disabled'} onclick="nextStep()">Send code</button>`;
@@ -375,8 +503,8 @@ function findTrips(){
 const nFilters=()=>S.filters.length+(S.maxPrice?1:0);
 const tripList = () => { const l=findTrips(); return l.length ? l.map(tripCard).join('') : `<div class="empty"><b>No trips match</b>Try another route or clear a filter.</div>${nFilters()?'<button class="btn ghost" onclick="clearFilters()">Clear filters</button>':''}`; };
 const findSpec = () => { const t=S.selTrip&&trip(S.selTrip); if(t) return tripPlaces(t);
-  return {a:S.from.trim()?place('',S.from.trim()):'',b:S.to.trim()?place('',S.to.trim()):'',ac:cityKey(S.from),bc:cityKey(S.to)}; };
-const findMap = () => gmap(findSpec(), S.selTrip?'Selected trip':(S.from&&S.to?S.from+' to '+S.to:''));
+  return {a:S.fromPl?'':(S.from.trim()?place('',S.from.trim()):''),aLL:S.fromPl&&S.fromPl.ll,b:S.toPl?'':(S.to.trim()?place('',S.to.trim()):''),bLL:S.toPl&&S.toPl.ll,ac:cityKey(S.from),bc:cityKey(S.to)}; };
+const findMap = () => gmap(findSpec(), S.selTrip?'Selected trip':((S.fromTxt||S.from)&&(S.toTxt||S.to)?(S.fromTxt||S.from)+' to '+(S.toTxt||S.to):''));
 let fmT; function updFind(){ const l=$('#list'); if(l) l.innerHTML=tripList(); const c=$('#count'); if(c) c.textContent=countText();
   clearTimeout(fmT); fmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=findMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
 const countText=()=>{ const n=findTrips().length; return n+' trip'+(n===1?'':'s')+' · '+SORTS[S.sort]; };
@@ -398,8 +526,9 @@ function vFind(){
   const n=nFilters();
   return `<div id="mapwrap">${findMap()}</div>
   <div class="two" style="gap:8px;margin-bottom:10px">
-    <div class="locwrap"><input class="input" id="qf" placeholder="From" value="${esc(S.from)}" oninput="S.from=this.value;S.selTrip=null;updFind()" aria-label="From"><button class="loc" onclick="locateMe()" aria-label="Use my location">${ic('locate',16)}</button></div>
-    <input class="input" id="qt" placeholder="To" value="${esc(S.to)}" oninput="S.to=this.value;S.selTrip=null;updFind()" aria-label="To"></div>
+    <div class="locwrap"><input class="input" id="qf" placeholder="From" autocomplete="off" value="${esc(S.fromTxt||S.from)}" onfocus="this.select();openSugg('from',S.fromPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.from=S.fromTxt=this.value;S.fromPl=null;S.fromTyped=true;S.selTrip=null;updFind();openSugg('from',this.value)" aria-label="From"><button class="loc" onclick="locateMe()" aria-label="Use my current location">${ic('locate',16)}</button></div>
+    <input class="input" id="qt" placeholder="Where to?" autocomplete="off" value="${esc(S.toTxt||S.to)}" onfocus="this.select();openSugg('to',S.toPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.to=S.toTxt=this.value;S.toPl=null;S.selTrip=null;updFind();openSugg('to',this.value)" aria-label="To"></div>
+  <div class="sugg" id="sg-find" hidden></div>
   ${rail(`<button class="chip fbtn" aria-pressed="${n>0}" onclick="S.sheet={type:'filters'};render()">${ic('filter',14)} Filters${n?` · ${n}`:''}</button>`+QUICK.map(k=>`<button class="chip" aria-pressed="${S.filters.includes(k)}" onclick="toggleFilter('${k}')">${FILT[k].l}</button>`).join(''))}
   <div class="row between" style="margin:2px 0 8px"><span class="meta" id="count">${countText()}</span>${n?'<button class="link sm" onclick="clearFilters()">Clear all</button>':''}</div>
   <div id="list">${tripList()}</div>`;
@@ -552,7 +681,7 @@ function vDTrips(){
 }
 /* post a trip */
 const distText = () => S.post.fromC===S.post.toC ? 'Pick two different cities' : '≈ '+Math.round(KM(S.post.fromC,S.post.toC))+' km · about '+dur(MINS(S.post.fromC,S.post.toC));
-const postSpec = () => { const p=S.post; return {a:place(p.fromA,CITIES[p.fromC].n),b:p.fromC===p.toC&&!p.toA?'':place(p.toA,CITIES[p.toC].n),ac:p.fromC,bc:p.toC}; };
+const postSpec = () => { const p=S.post; return {a:place(p.fromA,CITIES[p.fromC].n),aLL:p.fromLL||null,b:p.fromC===p.toC&&!p.toA?'':place(p.toA,CITIES[p.toC].n),bLL:p.toLL||null,ac:p.fromC,bc:p.toC}; };
 const postMap = () => gmap(postSpec(),'Route preview');
 let pmT; function updPost(){ const d=$('#dist'); if(d) d.textContent=distText(); clearTimeout(pmT); pmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=postMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
 function toggleRule(i,el){ const k=RULES[i].k, a=S.post.rules, j=a.indexOf(k); j>=0?a.splice(j,1):a.push(k); el.setAttribute('aria-pressed',j<0); }
@@ -560,10 +689,11 @@ function vPost(){
   const p=S.post, opts=sel=>Object.entries(CITIES).map(([k,c])=>`<option value="${k}" ${k===sel?'selected':''}>${c.n}</option>`).join('');
   return `<div id="mapwrap">${postMap()}</div><div>
   <h2>Post a trip</h2><p class="sub" id="dist">${distText()}</p>
-  <div class="two"><div class="field"><label for="pfc">From</label><select class="input" id="pfc" onchange="S.post.fromC=this.value;updPost()">${opts(p.fromC)}</select></div>
-  <div class="field"><label for="ptc">To</label><select class="input" id="ptc" onchange="S.post.toC=this.value;updPost()">${opts(p.toC)}</select></div></div>
-  <div class="two"><div class="field"><label for="pfa">Pickup spot</label><input class="input" id="pfa" value="${esc(p.fromA)}" placeholder="e.g. Wuse Market" oninput="S.post.fromA=this.value;updPost()"></div>
-  <div class="field"><label for="pta">Drop-off spot</label><input class="input" id="pta" value="${esc(p.toA)}" placeholder="e.g. Barnawa" oninput="S.post.toA=this.value;updPost()"></div></div>
+  <div class="two"><div class="field"><label for="pfc">From</label><select class="input" id="pfc" onchange="S.post.fromC=this.value;S.post.fromLL=null;updPost()">${opts(p.fromC)}</select></div>
+  <div class="field"><label for="ptc">To</label><select class="input" id="ptc" onchange="S.post.toC=this.value;S.post.toLL=null;updPost()">${opts(p.toC)}</select></div></div>
+  <div class="two"><div class="field"><label for="pfa">Pickup spot</label><input class="input" id="pfa" autocomplete="off" value="${esc(p.fromA)}" placeholder="e.g. Wuse Market" onfocus="this.select();openSugg('pfa',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.fromA=this.value;S.post.fromLL=null;S.post.touched=true;updPost();openSugg('pfa',this.value)"></div>
+  <div class="field"><label for="pta">Drop-off spot</label><input class="input" id="pta" autocomplete="off" value="${esc(p.toA)}" placeholder="e.g. Barnawa" onfocus="this.select();openSugg('pta',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.toA=this.value;S.post.toLL=null;updPost();openSugg('pta',this.value)"></div></div>
+  <div class="sugg" id="sg-post" hidden></div>
   <div class="two"><div class="field"><label for="pd">Day</label><select class="input" id="pd" onchange="S.post.day=this.value">${['Today','Tomorrow','Fri','Sat','Sun'].map(d=>`<option ${d===p.day?'selected':''}>${d}</option>`).join('')}</select></div>
   <div class="field"><label for="ptm">Time</label><input class="input" id="ptm" type="time" value="${p.time}" onchange="S.post.time=this.value"></div></div>
   <div class="two"><div class="field"><span class="label">Seats</span><div class="stepper"><button aria-label="Fewer seats" onclick="S.post.seats=Math.max(1,S.post.seats-1);render()">−</button><b>${p.seats}</b><button aria-label="More seats" onclick="S.post.seats=Math.min(S.user.veh.seats||4,S.post.seats+1);render()">+</button></div></div>
@@ -690,8 +820,11 @@ const VIEWS = {req:vReq,find:vFind,detail:vDetail,thread:vThread,confirmed:vConf
 function render(){
   const ph=$('#phone'); ph.dataset.mode=S.mode; ph.classList.toggle('onb',S.onbOn); ph.classList.toggle('splash',S.onbOn&&S.onb.step==='splash');
   const sc=$('#screen'), top=sc.scrollTop;
+  const ae=document.activeElement, fid=ae&&ae.id&&ae.matches('input')?ae.id:null, sel=fid&&ae.type!=='number'?[ae.selectionStart,ae.selectionEnd]:null;
   $('#view').innerHTML=S.onbOn?vOnb():(VIEWS[S.view]||vFind)(); sc.scrollTop=top; syncMaps(); requestAnimationFrame(syncMaps);
-  if(!S.onbOn){ renderHeader(); renderTabs(); }
+  if(fid){ const el=document.getElementById(fid); if(el){ el.focus({preventScroll:true}); if(sel) try{ el.setSelectionRange(sel[0],sel[1]); }catch(e){} } }
+  if(SG.field&&fid) drawSugg();
+  if(!S.onbOn){ renderHeader(); renderTabs(); if(!LOC.started){ LOC.started=true; startLoc(false); } }
   ph.querySelectorAll('.backdrop,.toast').forEach(e=>e.remove());
   if(S.sheet&&!S.onbOn){ const b=document.createElement('div'); b.className='backdrop'; b.innerHTML=sheetHTML(); b.addEventListener('click',e=>{ if(e.target===b){ S.sheet=null; render(); } }); ph.appendChild(b); }
   if(S.toast){ const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=S.toast; ph.appendChild(t); }

@@ -286,7 +286,7 @@ button.rule[aria-pressed="true"]::after{content:"";position:absolute;top:9px;rig
 #screen{position:relative}
 #maplayer{position:absolute;top:0;left:0;width:0;height:0;z-index:2}
 .gm{position:absolute;border-radius:18px;overflow:hidden;background:#e9efed}
-.gm iframe{display:block;width:100%;height:100%;border:0}
+.gmc{position:absolute;inset:0;background:#eef2f0}
 .map.g{background:#e9efed}
 .gslot{height:210px}
 .maptag{z-index:3}
@@ -376,3 +376,36 @@ details.past .pd{margin-top:10px;padding-top:4px}
 #ptr .ring{width:34px;height:34px;border-radius:50%;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.12);display:grid;place-items:center}
 #ptr img{width:22px;height:auto}
 #ptr.back,#view.back{transition:transform .25s ease,opacity .25s ease}
+/* live map bits */
+.gm .leaflet-container{font:inherit;background:#eef2f0}
+.gm .leaflet-tile-pane{filter:saturate(.75) hue-rotate(-8deg)}
+.gm .leaflet-control-attribution{font-size:8.5px;background:rgba(255,255,255,.75);padding:0 5px;border-radius:6px 0 0 0}
+.mloc{position:absolute;right:10px;bottom:10px;z-index:500;width:38px;height:38px;border-radius:12px;background:var(--surface);color:var(--muted);display:grid;place-items:center;box-shadow:0 2px 10px rgba(0,0,0,.16)}
+.gm.following .mloc{color:#2f80ed}
+.udot{position:relative}
+.udot i{position:absolute;inset:3px;border-radius:50%;background:#2f80ed;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.udot::before{content:"";position:absolute;inset:-6px;border-radius:50%;background:#2f80ed;opacity:.25;animation:pulse 1.8s ease-out infinite}
+.lcar svg{width:26px;height:26px;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+/* place suggestions */
+.sugg{background:var(--surface);border-radius:14px;box-shadow:0 8px 24px rgba(19,33,28,.14);margin:-4px 0 10px;overflow:hidden;position:relative;z-index:5}
+.sugg[hidden]{display:none}
+.sg{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-bottom:1px solid var(--soft)}
+.sg:last-child{border-bottom:0}
+.sg:hover,.sg:focus-visible{background:var(--soft)}
+.sg .ico{width:30px;height:30px;border-radius:9px;background:var(--soft);color:var(--muted);display:grid;place-items:center;flex:none}
+.sg.cur .ico{background:#e5effd;color:#2f80ed}
+.sg b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* role cards: tick when picked */
+.role .tick{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;color:transparent;flex:none}
+.role[aria-pressed="true"] .tick{background:var(--brand);border-color:var(--brand);color:#fff}
+/* one consistent layout on every device: header, content and tab bar share the same centred column */
+@container app (min-width:600px){
+  header.top{padding-left:max(24px,calc((100% - 560px)/2));padding-right:max(24px,calc((100% - 560px)/2))}
+  nav.tabs{padding-left:max(6px,calc((100% - 560px)/2));padding-right:max(6px,calc((100% - 560px)/2))}
+  .logo img.full{height:24px}
+}
+/* real phones: keep clear of the notch and the home bar */
+body.bare header.top{padding-top:max(6px,env(safe-area-inset-top))}
+body.bare nav.tabs{padding-bottom:max(8px,env(safe-area-inset-bottom))}
+body.bare .phone.splash #screen,body.bare .phone.onb #screen{padding-top:env(safe-area-inset-top)}
