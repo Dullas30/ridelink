@@ -371,11 +371,7 @@ details.past .pd{margin-top:10px;padding-top:4px}
 .amt button:active{transform:scale(.95)}
 .amt .input{text-align:center;font-family:var(--display);font-size:18px;font-weight:700;-moz-appearance:textfield}
 .amt .input::-webkit-outer-spin-button,.amt .input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-/* pull to refresh */
-#ptr{position:absolute;top:0;left:0;right:0;height:56px;display:flex;align-items:center;justify-content:center;gap:8px;z-index:4;opacity:0;transform:translateY(-56px);pointer-events:none;font-size:11.5px;font-weight:600;color:var(--muted)}
-#ptr .ring{width:34px;height:34px;border-radius:50%;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.12);display:grid;place-items:center}
-#ptr img{width:22px;height:auto}
-#ptr.ptr-anim,#view.ptr-anim{transition:transform .25s ease,opacity .25s ease}
+
 /* live map bits */
 .gm .leaflet-container{font:inherit;background:#eef2f0}
 .gm .leaflet-tile-pane{filter:saturate(.8)}
@@ -406,7 +402,7 @@ details.past .pd{margin-top:10px;padding-top:4px}
   .logo img.full{height:24px}
 }
 /* real phones: keep clear of the notch and the home bar */
-body.bare header.top{padding-top:max(6px,env(safe-area-inset-top))}
+body.bare header.top{padding-top:calc(env(safe-area-inset-top) + 14px);padding-bottom:12px}
 body.bare nav.tabs{padding-bottom:max(8px,env(safe-area-inset-bottom))}
 body.bare .phone.splash #screen,body.bare .phone.onb #screen{padding-top:env(safe-area-inset-top)}
 /* real phones: steady, no zoom-on-tap, no double bounce, full height even when the address bar moves */

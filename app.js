@@ -861,29 +861,3 @@ setDevice('iphone');
 (()=>{ const b=document.getElementById('boot'); if(!b) return; const t0=performance.now();
   const hide=()=>setTimeout(()=>{ b.classList.add('out'); setTimeout(()=>b.remove(),450); },Math.max(0,1400-(performance.now()-t0)));
   document.readyState==='complete'?hide():addEventListener('load',hide,{once:true}); setTimeout(hide,4000); })();
-
-/* pull to refresh: drag down from the top of a screen, let go to replay the start-up logo and land on home */
-function showBoot(){
-  if(document.getElementById('boot')) return;
-  const b=document.createElement('div'); b.id='boot'; b.setAttribute('role','status'); b.setAttribute('aria-label','Refreshing RideLink');
-  b.innerHTML='<div class="bl"><img src="assets/logo.png" alt="RideLink"><div class="bar"><i></i></div></div>';
-  $('#phone').appendChild(b);
-  setTimeout(()=>{ goHome(); b.classList.add('out'); setTimeout(()=>b.remove(),450); },1300);
-}
-(()=>{
-  const sc=$('#screen'), TH=70; let y0=null, pull=0, armed=false;
-  const ptr=document.createElement('div'); ptr.id='ptr'; ptr.innerHTML='<span class="ring"><img src="assets/logo-mark.png" alt=""></span><span class="pl">Pull to refresh</span>'; sc.prepend(ptr);
-  const blocked=t=>S.onbOn||S.sheet||sc.scrollTop>0||t.closest('input,select,textarea,.rail,.gm,.stepper,.amt');
-  const set=d=>{ pull=Math.max(0,Math.min(110,d)); const k=Math.min(1,pull/TH);
-    ptr.style.transform=`translateY(${pull-56}px)`; ptr.style.opacity=k; ptr.querySelector('img').style.transform=`rotate(${k*360}deg) scale(${.6+.4*k})`;
-    ptr.querySelector('.pl').textContent=pull>=TH?'Release to refresh':'Pull to refresh'; $('#view').style.transform=pull?`translateY(${pull*.6}px)`:''; $('#maplayer').style.transform=$('#view').style.transform; };
-  const start=(y,t)=>{ if(blocked(t)) return; y0=y; armed=false; };
-  const move=(y,e)=>{ if(y0===null) return; const d=(y-y0)*.55; if(d<=4){ if(armed){ set(0); } return; } if(sc.scrollTop>0){ y0=null; return; } armed=true; if(e.cancelable) e.preventDefault(); ptr.classList.remove('ptr-anim'); $('#view').classList.remove('ptr-anim'); set(d); };
-  const end=()=>{ if(y0===null) return; y0=null; const go=armed&&pull>=TH; if(armed) dragUntil=Date.now()+80; if(armed){ ptr.classList.add('ptr-anim'); $('#view').classList.add('ptr-anim'); setTimeout(()=>{ ptr.classList.remove('ptr-anim'); $('#view').classList.remove('ptr-anim'); },300); } set(0); armed=false; if(go) showBoot(); };
-  sc.addEventListener('touchstart',e=>start(e.touches[0].clientY,e.target),{passive:true});
-  sc.addEventListener('touchmove',e=>move(e.touches[0].clientY,e),{passive:false});
-  sc.addEventListener('touchend',end); sc.addEventListener('touchcancel',end);
-  sc.addEventListener('mousedown',e=>{ if(e.button===0) start(e.clientY,e.target); });
-  addEventListener('mousemove',e=>{ if(y0!==null&&e.buttons&1) move(e.clientY,e); });
-  addEventListener('mouseup',end);
-})();
