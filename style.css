@@ -434,3 +434,52 @@ body.bare,html:has(body.bare){background:#fff}
 body.bare .phone{background:var(--soft)}
 .gm iframe{display:block;width:100%;height:100%;border:0}
 a.gmlink{text-decoration:none}
+
+/* ---------- calmer, simpler layout ---------- */
+/* Bolt-style search card */
+.searchcard{background:var(--surface);border-radius:18px;padding:6px 12px;box-shadow:0 2px 12px rgba(19,33,28,.08);margin:-30px 8px 10px;position:relative;z-index:3}
+.sline{display:flex;align-items:center;gap:10px;min-height:46px}
+.sline.to{border-top:1px solid var(--soft)}
+.sdot{width:10px;height:10px;border-radius:50%;background:var(--brand);flex:none}
+.sdot.from{background:#fff;border:3px solid var(--brand)}
+.sinput{flex:1;min-width:0;border:0;background:none;font-size:15px;font-weight:600;padding:10px 0;outline:none}
+.sinput.small{font-size:13.5px;font-weight:500;color:var(--muted)}
+.sinput::placeholder{color:var(--muted);font-weight:500}
+.searchcard .loc{position:static;transform:none}
+.ssub{display:flex;align-items:center;gap:4px;font-size:11px;color:#2f80ed;margin:-8px 0 6px 20px}
+.listhead{margin:4px 2px 8px}
+.fpill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:99px;background:var(--surface);border:1px solid var(--line)}
+.fpill[aria-pressed="true"]{border-color:var(--brand);color:var(--brand)}
+.fpill b{background:var(--brand);color:#fff;border-radius:99px;font-size:10.5px;padding:1px 6px}
+/* compact trip card */
+.tc{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 13px}
+.tc .ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcr{display:grid;justify-items:end;gap:4px;flex:none}
+.tag{font-size:10px;font-weight:700;color:var(--boost-ink);background:var(--boost-soft);border-radius:99px;padding:2px 7px}
+.tag.soft{color:var(--brand);background:var(--brand-soft)}
+/* main action fixed at the bottom of the screen */
+.dock{position:sticky;bottom:-20px;margin:14px -16px -20px;padding:12px 16px 16px;background:linear-gradient(to top,var(--soft) 78%,rgba(244,246,245,0));display:flex;gap:10px;z-index:4}
+.dock .btn{flex:1;padding:13px 14px;font-size:14px}
+.dock .btn.ghost{flex:.7}
+@container app (min-width:600px){.dock{margin:14px -24px -24px;padding:12px 24px 18px;bottom:-24px}}
+@container app (max-width:340px){.dock{margin:14px -12px -16px;padding:10px 12px 12px;bottom:-16px}}
+.textlink{display:inline-flex;align-items:center;gap:6px;color:var(--brand);font-weight:600;font-size:12.5px;text-decoration:none;margin:12px 2px 0}
+/* post a trip steps */
+.stephead{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.steps.sbar{margin:8px 0 14px}
+.stepper.big button{width:42px;height:42px;font-size:20px}
+.stepper.big b{font-size:20px;min-width:28px}
+.bigin{font-family:var(--display);font-size:22px!important;font-weight:700}
+details.more summary{cursor:pointer;color:var(--brand);font-weight:600;font-size:12.5px;list-style:none;margin:4px 0}
+details.more summary::-webkit-details-marker{display:none}
+.sumcard{margin-top:14px;display:grid;gap:3px}
+/* phones: a little larger and airier */
+body.bare{font-size:14.5px}
+body.bare .name{font-size:14.5px}
+body.bare .meta{font-size:12.5px}
+body.bare .btn{font-size:14.5px;padding:13px 14px}
+body.bare .btn.sm{font-size:13px;padding:9px 13px}
+body.bare h2{font-size:21px}
+body.bare .card{padding:14px;margin-bottom:12px}
+body.bare nav.tabs button.t,body.bare nav.tabs button.fab{font-size:11.5px}
+.card.tap.tc{display:flex;flex-direction:row;align-items:center}

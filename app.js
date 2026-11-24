@@ -82,6 +82,7 @@ const MINS = (a,b) => Math.round(KM(a,b)/75*60);
 const AREAS = {'Kubwa':[9.155,7.322],'Gwarinpa':[9.105,7.405],'Wuse 2':[9.079,7.474],'Wuse':[9.064,7.466],'Central Business District':[9.054,7.489],'Maitama':[9.088,7.497],'Garki':[9.033,7.489],
   'Lugbe':[8.977,7.360],'Nyanya':[9.010,7.570],'Jabi':[9.072,7.428],'Asokoro':[9.042,7.520],'Lokogoma':[8.990,7.450],'Life Camp':[9.080,7.392],'Utako':[9.071,7.441],'Area 1':[9.034,7.470],'Karu':[9.010,7.590],'Dutse':[9.140,7.400],'Apo':[8.985,7.497],'Berger':[9.060,7.448],'Banex':[9.083,7.468],'Airport':[9.007,7.263]};
 const areaLL = name => { const k=Object.keys(AREAS).find(a=>String(name||'').toLowerCase().includes(a.toLowerCase())); return k?{lat:AREAS[k][0],lng:AREAS[k][1]}:null; };
+const nearArea = ll => { let best='',bd=1e9; for(const [n,[la,lo]] of Object.entries(AREAS)){ const d=(la-ll.lat)**2+(lo-ll.lng)**2; if(d<bd){bd=d;best=n;} } return bd<0.0025?'Near '+best:''; };
 const hav = (A,B) => { const d=Math.PI/180, x=(B.lat-A.lat)*d, y=(B.lng-A.lng)*d, h=Math.sin(x/2)**2+Math.cos(A.lat*d)*Math.cos(B.lat*d)*Math.sin(y/2)**2; return 12742*Math.asin(Math.sqrt(h)); };
 const endLL = (side,c,area) => areaLL(area)||(c&&CITIES[c]?{lat:CITIES[c].lat,lng:CITIES[c].lon}:null);
 const routeKm = (c1,a1,c2,a2) => { if(c1!==c2) return KM(c1,c2); const A=endLL(0,c1,a1),B=endLL(1,c2,a2); return A&&B?Math.max(1,hav(A,B)*1.35):8; };
@@ -93,7 +94,7 @@ const isWide = () => ($('#phone')||{clientWidth:390}).clientWidth >= 600;
 
 /* ---------- state ---------- */
 const S = {
-  onbOn:true, mode:'passenger', view:'find', dev:'iphone',
+  onbOn:true, demo:true, mode:'passenger', view:'find', dev:'iphone',
   user:{name:'Ibrahim Abdulrahman',phone:'0803 123 4567',email:'',photo:null,since:'Mar 2025',roles:['passenger','driver'],driverVerified:true,
     veh:{make:'Toyota',model:'Camry',color:'Silver',plate:'ABJ 482 KD',seats:3},em:{name:'Aisha A.',phone:'0803 000 0000'},
     notif:true,autoShare:true,places:{home:'Wuse 2, Abuja',work:'Central Business District, Abuja'},
@@ -246,8 +247,8 @@ async function reverseStreet(ll){
       return {label:[g('street_number')&&g('route')?g('street_number')+' '+g('route'):g('route')||g('premise'),g('neighborhood')||g('sublocality')].filter(Boolean).join(', ')||r.formatted_address.split(',').slice(0,2).join(','),city:cityOf([g('locality'),g('administrative_area_level_1')],ll)}; }
     const j=await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=${ll.lat}&lon=${ll.lng}`)).json(); const a=j.address||{};
     const street=[a.house_number,a.road].filter(Boolean).join(' ')||a.pedestrian||a.amenity||j.name;
-    return {label:[street,a.suburb||a.neighbourhood||a.quarter||a.village||a.city_district].filter((v,i,x)=>v&&x.indexOf(v)===i).join(', ')||'Pinned spot',city:cityOf([a.city,a.county,a.state],ll)};
-  }catch(e){ return {label:'Pinned spot',city:CITIES[nearestCity(ll)].n}; }
+    return {label:[street,a.suburb||a.neighbourhood||a.quarter||a.village||a.city_district].filter((v,i,x)=>v&&x.indexOf(v)===i).join(', ')||nearArea(ll)||'Pinned spot',city:cityOf([a.city,a.county,a.state],ll)};
+  }catch(e){ return {label:nearArea(ll)||'Pinned spot',city:CITIES[nearestCity(ll)].n}; }
 }
 async function reverse(ll){
   try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
@@ -362,26 +363,32 @@ function startLoc(ask){
   if(!navigator.geolocation){ if(ask) toast('Location is not available on this device. Type your area instead.'); return; }
   if(LOC.watch!==null){ if(ask&&!S.loc) toast('Finding your location…'); return; }
   if(ask) toast('Finding your location…');
-  try{ LOC.watch=navigator.geolocation.watchPosition(p=>{ const first=!S.loc; S.loc=Object.assign(S.loc||{},{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy});
+  try{ LOC.watch=navigator.geolocation.watchPosition(p=>{ const first=!S.loc, prev=S.loc?{lat:S.loc.lat,lng:S.loc.lng,acc:S.loc.acc}:null;
+      S.loc=Object.assign(S.loc||{},{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy});
       mapEls.forEach(m=>{ if(m.api){ m.api.user(S.loc); if(m.follow) m.api.pan(S.loc); } });
-      if(first) firstFix(ask); },
+      if(first) firstFix(ask);
+      else if(prev&&(S.loc.acc<prev.acc*0.6||hav(prev,S.loc)>0.15)) refineLoc(); },
     ()=>{ LOC.watch=null; LOC.denied=true; if(ask) toast('Location is off. Allow it in your browser, or type your area.'); },
     {enableHighAccuracy:true,maximumAge:5000,timeout:20000}); }catch(e){ LOC.watch=null; }
 }
+/* the first reading is often rough (Wi-Fi / cell); as GPS sharpens, update the label and the pickup */
+let rlT; function refineLoc(){ clearTimeout(rlT); rlT=setTimeout(async()=>{ const r=await reverseStreet(S.loc); S.loc.label=r.label; S.loc.city=r.city||S.loc.city;
+  if(S.fromPl&&S.fromPl.cur){ S.fromPl.ll={lat:S.loc.lat,lng:S.loc.lng}; S.fromPl.sub=r.label; S.fromPl.label=r.label||S.fromPl.label; S.fromTxt=S.fromPl.label; S.from=S.loc.city||S.from; const a=document.activeElement; if(!(a&&a.matches&&a.matches('input'))) render(); }
+  else if(!S.fromPl&&!S.fromTyped&&S.loc.acc<=150) useCurrent('from',true); },1200); }
 async function firstFix(force){
-  const r=await reverse(S.loc); S.loc.label=r.label; S.loc.city=r.city||CITIES[nearestCity(S.loc)].n;
+  const r=await reverseStreet(S.loc); S.loc.label=r.label; S.loc.city=r.city||CITIES[nearestCity(S.loc)].n;
   if(LOC.want){ const f=LOC.want; LOC.want=null; useCurrent(f); return; }
-  if(force||(!S.fromPl&&!S.fromTyped&&S.loc.acc<=1500)) useCurrent('from',true);
-  if(S.post&&!S.post.fromLL&&!S.post.touched){ const k=cityKey(S.loc.city); if(k){ S.post.fromC=k; S.post.fromA=r.label.split(',')[0]||S.post.fromA; S.post.fromLL={lat:S.loc.lat,lng:S.loc.lng}; } }
+  if(force||(!S.fromPl&&!S.fromTyped&&S.loc.acc<=300)) useCurrent('from',true);
+  if(S.post&&!S.post.fromLL&&!S.post.touched){ const k=cityKey(S.loc.city); if(k){ S.post.fromC=k; S.post.fromA=(r.label&&r.label!=='Pinned spot'?r.label.split(',')[0]:'')||S.post.fromA; S.post.fromLL={lat:S.loc.lat,lng:S.loc.lng}; } }
 }
 function useCurrent(field,quiet){
   if(!quiet){ closeSugg(); const a=document.activeElement; if(a&&a.blur&&a.matches&&a.matches('input')) a.blur(); }
   if(!S.loc){ LOC.want=field; startLoc(true); return; }
   const L0={lat:S.loc.lat,lng:S.loc.lng};
-  if(field==='from'){ S.fromPl={label:'Current location',sub:S.loc.label||'',ll:L0,cur:true}; S.fromTxt='Current location'; S.from=S.loc.city||''; S.selTrip=null; }
+  if(field==='from'){ const nm=S.loc.label||'Your location'; S.fromPl={label:nm,sub:nm,ll:L0,cur:true}; S.fromTxt=nm; S.from=S.loc.city||''; S.selTrip=null; }
   if(field==='pfa'){ S.post.fromA=(S.loc.label||'').split(',')[0]||'Current location'; S.post.fromLL=L0; const k=cityKey(S.loc.city); if(k) S.post.fromC=k; S.post.touched=true; }
   closeSugg(); const a=document.activeElement; if(!(a&&a.matches&&a.matches('input'))||!quiet) render();
-  if(!quiet) toast(S.loc.acc>1500?'Your location is approximate (about '+Math.round(S.loc.acc/1000)+' km). Type your area for a precise pickup.':'Using your current location'+(S.loc.label?': '+S.loc.label:''));
+  if(!quiet) toast(S.loc.acc>1500?'Your location is approximate (about '+Math.round(S.loc.acc/1000)+' km). Type your area for a precise pickup.':'Pickup set to '+(S.loc.label||'your location'));
 }
 function locateMe(){ if(S.loc) useCurrent('from'); else { LOC.wantFrom=true; startLoc(true); setTimeout(()=>{ if(S.loc&&LOC.wantFrom){ LOC.wantFrom=false; useCurrent('from'); } },2500); } }
 /* --- suggestions dropdown for From, To, Pickup, Drop-off --- */
@@ -509,7 +516,7 @@ function vOnb(){
   if(o.step==='splash') return `<div class="sp"><div class="brand"><img src="assets/logo-white.png" alt="RideLink"></div>
     <h2>Share the road.<br>Split the cost.</h2><p>Post a trip or join one. Agree the price. Travel with verified people.</p>
     ${mapBox(mapSVG({routes:[{a:'abuja',b:'kaduna',sel:true}],car:.42}),'Abuja to Kaduna')}
-    <div class="spbtn"><button class="btn" onclick="nextStep()">Get started</button><button class="skip" onclick="skipOnb()">Skip sign-up for the demo</button></div></div>`;
+    <div class="spbtn"><button class="btn" onclick="nextStep()">Get started</button>${S.demo?'<button class="skip" onclick="skipOnb()">Skip sign-up for the demo</button>':'<span></span>'}</div></div>`;
   const bar = NOBAR.includes(o.step) ? '' :
     `<div class="top"><button class="back" style="margin:0" onclick="prevStep()" aria-label="Back">${ic('back',18)}</button><div class="steps">${q.filter(s=>!NOBAR.includes(s)).map(s=>`<i class="${q.indexOf(s)<=i?'on':''}"></i>`).join('')}</div><button class="skip" onclick="${kyc?'asPassenger()':'skipOnb()'}">${kyc?'Later':'Skip'}</button></div>`;
   const asP = `<button class="btn ghost" style="margin-top:8px" onclick="asPassenger()">Continue as passenger</button>`;
@@ -522,7 +529,7 @@ function vOnb(){
     <button class="btn" id="phgo" ${o.phone.length>=10?'':'disabled'} onclick="nextStep()">Send code</button>`;
   if(o.step==='otp') b=`<h2>Enter the 4-digit code</h2><p class="sub">Sent to +234 ${esc(o.phone.replace(/^0/,'')||'803 000 0000')}</p>
     <div class="otp">${[0,1,2,3].map(n=>`<input id="o${n}" inputmode="numeric" maxlength="1" aria-label="Digit ${n+1}" oninput="onOtp(${n},this)" onkeydown="otpKey(${n},event)">`).join('')}</div>
-    <button class="btn ghost" onclick="demoOtp()">Use demo code 1234</button>`;
+    ${S.demo?'<button class="btn ghost" onclick="demoOtp()">Use demo code 1234</button>':''}`;
   if(o.step==='profile') b=`<h2>What should we call you?</h2><p class="sub">Drivers and passengers see your name.</p>
     <div class="field"><label for="nm">Full name</label><input class="input" id="nm" value="${esc(o.name)}" placeholder="As on your ID" oninput="S.onb.name=this.value;$('#pgo').disabled=!this.value.trim()"></div>
     <button class="btn" id="pgo" ${o.name.trim()?'':'disabled'} onclick="nextStep()">${o.roles.includes('driver')?'Continue to driver checks':'Create account'}</button>`;
@@ -531,7 +538,7 @@ function vOnb(){
     <div class="field"><label for="lic">Driver’s licence number</label><input class="input" id="lic" maxlength="16" placeholder="e.g. ABJ12345AA01" value="${esc(o.licNo)}" oninput="S.onb.licNo=this.value.toUpperCase();updKyc()"></div>
     ${upl('lic','Photo of your licence','Front side, all corners visible','id','environment')}
     ${upl('selfie','Take a live photo','Uses your front camera. Face the light, no glasses','camera','user')}
-    <button class="link" onclick="demoKyc()">Fill with demo details</button>
+    ${S.demo?'<button class="link" onclick="demoKyc()">Fill with demo details</button>':''}
     <div class="foot"><button class="btn" id="kgo" ${idReady()?'':'disabled'} onclick="nextStep()">Continue</button>${asP}</div>`;
   if(o.step==='kycCar'){ const v=o.veh;
     b=`<span class="chip">Driver check 2 of 2</span><h2 style="margin-top:8px">Your car</h2><p class="sub">Passengers see your car and plate before they book.</p>
@@ -540,7 +547,7 @@ function vOnb(){
     <div class="field"><span class="label">Seats for passengers</span><div class="stepper"><button aria-label="Fewer seats" onclick="S.onb.veh.seats=Math.max(1,S.onb.veh.seats-1);render()">−</button><b>${v.seats}</b><button aria-label="More seats" onclick="S.onb.veh.seats=Math.min(6,S.onb.veh.seats+1);render()">+</button></div></div>
     <span class="label">Car photos</span><div class="photos">${tile('carFront','Front')}${tile('carBack','Back')}${tile('carIn','Inside')}</div>
     ${upl('papers','Vehicle papers','Registration and insurance','doc','')}
-    <button class="link" onclick="demoKyc()">Fill with demo details</button>
+    ${S.demo?'<button class="link" onclick="demoKyc()">Fill with demo details</button>':''}
     <div class="foot"><button class="btn" id="kgo" ${carReady()?'':'disabled'} onclick="nextStep()">Submit for review</button>${asP}</div>`; }
   if(o.step==='review') b=`<div class="center" style="padding-top:90px"><div class="spin"></div><h2>Checking your details</h2><p class="sub">In the live app our team confirms these, usually within a day. You can still book rides meanwhile.</p></div>`;
   if(o.step==='done'){ const drv=o.only||(o.roles.includes('driver')&&!o.skipped);
@@ -552,11 +559,13 @@ function vOnb(){
 
 /* ---------- shared bits ---------- */
 function rail(items){ return `<div class="rail">${items}</div>`; }
+const shortPlace = x => { const [c,a]=x.split(' · '); return a||c; };
 function tripCard(t){
-  return `<button class="card tap ${t.boosted?'promoted':''} ${S.selTrip===t.id?'sel':''}" onclick="go('detail',{sel:${t.id}})" aria-label="Trip from ${esc(t.from)} to ${esc(t.to)}">
-    <div class="row between"><div class="row"><div class="avatar">${initials(t.driver)}</div><div><div class="name">${esc(t.driver)}</div><div class="meta">★ ${t.rating} · ${esc(t.when)}</div></div></div><div class="price">${naira(t.price)}</div></div>
-    <div class="route"><div>${esc(t.from)}</div><div>${esc(t.to)}</div></div>
-    <div class="chips"><span class="chip">${t.seats} seat${t.seats===1?'':'s'} left</span>${t.neg?'<span class="chip good">Negotiable</span>':''}${t.boosted?'<span class="chip promo">Promoted</span>':''}</div></button>`;
+  const sameCity=t.fromC===t.toC, where=sameCity?`${esc(shortPlace(t.from))} → ${esc(shortPlace(t.to))}`:`${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}`;
+  return `<button class="card tap tc ${t.boosted?'promoted':''}" onclick="go('detail',{sel:${t.id}})" aria-label="Trip from ${esc(t.from)} to ${esc(t.to)}">
+    <div class="avatar">${initials(t.driver)}</div>
+    <div class="grow"><div class="name ell">${where}</div><div class="meta">${esc(t.when.replace(' · ',' '))} · ${t.seats} seat${t.seats===1?'':'s'} · ★ ${t.rating}</div></div>
+    <div class="tcr"><div class="price">${naira(t.price)}</div>${t.boosted?'<span class="tag">Promoted</span>':t.neg?'<span class="tag soft">Offers ok</span>':''}</div></button>`;
 }
 const hourOf=t=>{ const m=t.when.match(/(\d+):(\d+)\s*(AM|PM)/); if(!m) return 12; let h=+m[1]%12; if(m[3]==='PM') h+=12; return h; };
 const dayOf=t=>t.when.split(' · ')[0];
@@ -588,7 +597,7 @@ const findSpec = () => { const t=S.selTrip&&trip(S.selTrip); if(t) return tripPl
 const findMap = () => gmap(findSpec(), S.selTrip?'Selected trip':((S.fromTxt||S.from)&&(S.toTxt||S.to)?(S.fromTxt||S.from)+' to '+(S.toTxt||S.to):''));
 let fmT; function updFind(){ const l=$('#list'); if(l) l.innerHTML=tripList(); const c=$('#count'); if(c) c.textContent=countText();
   clearTimeout(fmT); fmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=findMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
-const countText=()=>{ const n=findTrips().length; return n+' trip'+(n===1?'':'s')+' · '+SORTS[S.sort]; };
+const countText=()=>{ const n=findTrips().length; return n+' trip'+(n===1?'':'s')+(S.sort==='best'?'':' · '+SORTS[S.sort]); };
 function toggleFilter(k){ const i=S.filters.indexOf(k); i>=0?S.filters.splice(i,1):S.filters.push(k); render(); }
 function clearFilters(){ S.filters=[]; S.maxPrice=0; S.sort='best'; render(); }
 function pickTrip(id){ if(S.selTrip===id){ go('detail',{sel:id}); return; } S.selTrip=id; if(S.view==='find') updFind(); else go('detail',{sel:id}); }
@@ -604,14 +613,15 @@ function bookingCard(b){
 }
 
 function vFind(){
-  const n=nFilters();
+  const n=nFilters(), cur=S.fromPl&&S.fromPl.cur;
   return `<div id="mapwrap">${findMap()}</div>
-  <div class="two" style="gap:8px;margin-bottom:10px">
-    <div class="locwrap"><input class="input" id="qf" placeholder="From" autocomplete="off" value="${esc(S.fromTxt||S.from)}" onfocus="this.select();openSugg('from',S.fromPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.from=S.fromTxt=this.value;S.fromPl=null;S.fromTyped=true;S.selTrip=null;updFind();openSugg('from',this.value)" aria-label="From"><button class="loc" onclick="locateMe()" aria-label="Use my current location">${ic('locate',16)}</button></div>
-    <input class="input" id="qt" placeholder="Where to?" autocomplete="off" value="${esc(S.toTxt||S.to)}" onfocus="this.select();openSugg('to',S.toPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.to=S.toTxt=this.value;S.toPl=null;S.selTrip=null;updFind();openSugg('to',this.value)" aria-label="To"></div>
+  <div class="searchcard">
+    <div class="sline"><span class="sdot from"></span><input class="sinput small" id="qf" placeholder="Pickup" autocomplete="off" value="${esc(S.fromTxt||S.from)}" onfocus="this.select();openSugg('from',S.fromPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.from=S.fromTxt=this.value;S.fromPl=null;S.fromTyped=true;S.selTrip=null;updFind();openSugg('from',this.value)" aria-label="Pickup"><button class="loc" onclick="locateMe()" aria-label="Use my current location">${ic('locate',16)}</button></div>
+    ${cur?`<div class="ssub">${ic('locate',11)} Your location${S.loc&&S.loc.acc>300?' · approximate, tap to change':''}</div>`:''}
+    <div class="sline to"><span class="sdot"></span><input class="sinput" id="qt" placeholder="Where to?" autocomplete="off" value="${esc(S.toTxt||S.to)}" onfocus="this.select();openSugg('to',S.toPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.to=S.toTxt=this.value;S.toPl=null;S.selTrip=null;updFind();openSugg('to',this.value)" aria-label="Where to?"></div>
+  </div>
   <div class="sugg" id="sg-find" hidden></div>
-  ${rail(`<button class="chip fbtn" aria-pressed="${n>0}" onclick="S.sheet={type:'filters'};render()">${ic('filter',14)} Filters${n?` · ${n}`:''}</button>`+QUICK.map(k=>`<button class="chip" aria-pressed="${S.filters.includes(k)}" onclick="toggleFilter('${k}')">${FILT[k].l}</button>`).join(''))}
-  <div class="row between" style="margin:2px 0 8px"><span class="meta" id="count">${countText()}</span>${n?'<button class="link sm" onclick="clearFilters()">Clear all</button>':''}</div>
+  <div class="row between listhead"><span class="meta" id="count">${countText()}</span><button class="fpill" aria-pressed="${n>0}" onclick="S.sheet={type:'filters'};render()">${ic('filter',14)} Filters${n?` <b>${n}</b>`:''}</button></div>
   <div id="list">${tripList()}</div>`;
 }
 function vDetail(){
@@ -622,15 +632,15 @@ function vDetail(){
   else if(ex){ const [lab,cls]=statusChip(ex);
     act=`<div class="card row between"><div><div class="name">Your offer ${naira(ex.amount)}</div><div class="meta">${ex.status==='countered'?'Driver countered '+naira(ex.counter):'Sent to the driver'}</div></div><span class="chip ${cls}">${lab}</span></div>
     <button class="btn" onclick="go('thread',{offerId:${ex.id}})">${ex.status==='countered'?'Reply to counter':ex.status==='accepted'?'Pay to confirm':'View offer'}</button>`; }
-  else act=`<div class="btns" style="flex-direction:column"><button class="btn" ${t.seats?'':'disabled'} onclick="sendOffer(${t.id},${t.price})">Request a seat at ${naira(t.price)}</button>
-    ${t.neg?`<button class="btn ghost" ${t.seats?'':'disabled'} onclick="S.sheet={type:'offer',tripId:${t.id}};render()">Make an offer</button>`:''}</div>`;
+  else act=`<div class="dock">${t.neg?`<button class="btn ghost" ${t.seats?'':'disabled'} onclick="S.sheet={type:'offer',tripId:${t.id}};render()">Make offer</button>`:''}<button class="btn" ${t.seats?'':'disabled'} onclick="sendOffer(${t.id},${t.price})">Request seat · ${naira(t.price)}</button></div>`;
   return `<button class="back" onclick="go('${S.mode==='driver'?'dTrips':'find'}')">${ic('back',16)} Back</button>
   ${gmap(tripPlaces(t),'≈ '+Math.round(tKm(t))+' km · '+dur(tMins(t)))}<div>
   <div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="row"><div class="avatar">${initials(t.driver)}</div><div><div class="name">${esc(t.driver)}</div><div class="meta">★ ${t.rating} · ${esc(t.car)}</div></div></div><div class="price">${naira(t.price)}<small> /seat</small></div></div>
     <div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
     <div class="chips"><span class="chip ${t.seats?'good':'bad'}">${t.seats} seat${t.seats===1?'':'s'} left</span>${t.neg?'<span class="chip">Negotiable</span>':'<span class="chip">Fixed price</span>'}</div></div>
   <h3>Trip rules <span class="swipe">Swipe ${ic('arrow',12)}</span></h3>${rail(rules.map(ruleCard).join(''))}
-  ${act}<div class="btns">${gmBtn('Open route in Google Maps',tripPlaces(t).b,tripPlaces(t).a)}</div></div>`;
+  <a class="textlink" href="${gmDir(tripPlaces(t).b,tripPlaces(t).a)}" target="_blank" rel="noopener">${ic('pin',14)} Open route in Google Maps</a>
+  ${act}</div>`;
 }
 function sendOffer(tripId, amount, existingId){
   const t=trip(tripId); let o;
@@ -654,7 +664,7 @@ function vThread(){
   if(o.status==='pending') act=`<div class="note">Waiting for ${esc(t.driver.split(' ')[0])} to respond…</div>`;
   if(o.status==='countered') act=`<div class="btns"><button class="btn" onclick="acceptCounter(${o.id})">Accept ${naira(o.counter)}</button>${o.round<3?`<button class="btn ghost" onclick="S.sheet={type:'offer',tripId:${t.id},again:${o.id}};render()">Counter</button>`:''}</div>
     <div class="btns"><button class="btn bad" onclick="declineOffer(${o.id})">Decline</button></div><p class="hint" style="margin-top:8px">Round ${o.round} of 3${o.round>=3?'. This is the driver’s final price.':'.'}</p>`;
-  if(o.status==='accepted') act=`<button class="btn" onclick="pay(${o.id})">Pay ${naira(o.final)} to confirm</button><p class="hint" style="margin-top:8px">Held securely and released to the driver after the trip. Free cancellation until 2 hours before departure.</p>`;
+  if(o.status==='accepted') act=`<p class="hint" style="margin-top:8px">Your money is held safely and released to the driver after the trip. Free cancellation until 2 hours before departure.</p><div class="dock"><button class="btn" onclick="pay(${o.id})">Pay ${naira(o.final)} to confirm</button></div>`;
   return `<button class="back" onclick="go('trips')">${ic('back',16)} Inbox</button>
   <div class="card"><div class="row between"><div class="name">${esc(t.driver)}</div><span class="chip ${cls}">${lab}</span></div><div class="meta" style="margin-top:4px">${esc(t.from)} → ${esc(t.to)}</div><div class="meta">${esc(t.when)} · Listed ${naira(t.price)}</div></div>
   <div class="msgs">${o.msgs.map(m=>`<div class="bubble ${m.w}">${esc(m.t)}</div>`).join('')}</div>${act}`;
@@ -701,7 +711,7 @@ function vTrack(){
     <button class="btn" style="margin-top:10px" ${T.arrived?'disabled':''} onclick="stopTrack();arrive()">End trip</button>`
   :`<div class="label" style="text-align:center">Pickup code</div><div class="code">${(S.bookings.find(b=>b.id===T.bid)||{code:'0000'}).code.split('').join(' ')}</div>
     <div class="btns"><button class="btn ghost" onclick="toast('Demo: a live link would be copied to your clipboard')">${ic('share',16)} Share trip</button><button class="btn bad" onclick="S.sheet={type:'sos'};render()">${ic('sos',16)} SOS</button></div>
-    <div class="btns"><button class="btn ghost" onclick="toast('Demo: chat opens here')">${ic('chat',16)} Message driver</button>${T.arrived?'':'<button class="btn ghost" onclick="stopTrack();arrive()">Skip to arrival</button>'}</div>`}
+    <div class="btns"><button class="btn ghost" onclick="toast('Demo: chat opens here')">${ic('chat',16)} Message driver</button>${T.arrived||!S.demo?'':'<button class="btn ghost" onclick="stopTrack();arrive()">Skip to arrival</button>'}</div>`}
   </div>`;
 }
 function togglePick(id,el){ const p=S.track.picked, i=p.indexOf(id); i>=0?p.splice(i,1):p.push(id); el.setAttribute('aria-pressed',i<0); el.textContent=i<0?'Picked up':'Mark picked up'; }
@@ -769,29 +779,36 @@ const postMap = () => gmap(postSpec(),'Route preview');
 let pmT; function updPost(){ const d=$('#dist'); if(d) d.textContent=distText(); clearTimeout(pmT); pmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=postMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
 function toggleRule(i,el){ const k=RULES[i].k, a=S.post.rules, j=a.indexOf(k); j>=0?a.splice(j,1):a.push(k); el.setAttribute('aria-pressed',j<0); }
 function vPost(){
-  const p=S.post, opts=sel=>Object.entries(CITIES).map(([k,c])=>`<option value="${k}" ${k===sel?'selected':''}>${c.n}</option>`).join('');
-  return `<div id="mapwrap">${postMap()}</div><div>
-  <h2>Post a trip</h2><p class="sub" id="dist">${distText()}</p>
-  <div class="two"><div class="field"><label for="pfc">From</label><select class="input" id="pfc" onchange="S.post.fromC=this.value;S.post.fromLL=null;updPost()">${opts(p.fromC)}</select></div>
-  <div class="field"><label for="ptc">To</label><select class="input" id="ptc" onchange="S.post.toC=this.value;S.post.toLL=null;updPost()">${opts(p.toC)}</select></div></div>
-  <div class="two"><div class="field"><label for="pfa">Pickup spot</label><input class="input" id="pfa" autocomplete="off" value="${esc(p.fromA)}" placeholder="e.g. Wuse Market" onfocus="this.select();openSugg('pfa',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.fromA=this.value;S.post.fromLL=null;S.post.touched=true;updPost();openSugg('pfa',this.value)"></div>
-  <div class="field"><label for="pta">Drop-off spot</label><input class="input" id="pta" autocomplete="off" value="${esc(p.toA)}" placeholder="e.g. Barnawa" onfocus="this.select();openSugg('pta',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.toA=this.value;S.post.toLL=null;updPost();openSugg('pta',this.value)"></div></div>
-  <div class="sugg" id="sg-post" hidden></div>
-  <div class="two"><div class="field"><label for="pd">Day</label><select class="input" id="pd" onchange="S.post.day=this.value">${['Today','Tomorrow','Fri','Sat','Sun'].map(d=>`<option ${d===p.day?'selected':''}>${d}</option>`).join('')}</select></div>
-  <div class="field"><label for="ptm">Time</label><input class="input" id="ptm" type="time" value="${p.time}" onchange="S.post.time=this.value"></div></div>
-  <div class="two"><div class="field"><span class="label">Seats</span><div class="stepper"><button aria-label="Fewer seats" onclick="S.post.seats=Math.max(1,S.post.seats-1);render()">−</button><b>${p.seats}</b><button aria-label="More seats" onclick="S.post.seats=Math.min(S.user.veh.seats||4,S.post.seats+1);render()">+</button></div></div>
-  <div class="field"><label for="pp">Price per seat (₦)</label><input class="input" id="pp" type="number" inputmode="numeric" value="${p.price}" oninput="S.post.price=+this.value"></div></div>
-  <div class="toggle"><div><div class="name">Allow offers</div><div class="hint">Passengers can negotiate your price.</div></div><button class="switch" aria-pressed="${p.neg}" aria-label="Allow offers" onclick="S.post.neg=!S.post.neg;render()"></button></div>
-  ${p.neg?`<div class="field"><label for="pfl">Lowest price you accept (₦)</label><input class="input" id="pfl" type="number" inputmode="numeric" value="${p.floor}" oninput="S.post.floor=+this.value"></div>`:''}
-  <h3>Trip rules <span class="swipe">Swipe ${ic('arrow',12)}</span></h3>
-  ${rail(RULES.map((r,i)=>`<button class="rule" aria-pressed="${p.rules.includes(r.k)}" onclick="toggleRule(${i},this)"><span class="ico">${ic(r.ic,18)}</span><div><b>${esc(r.k)}</b><span class="d">${esc(r.d)}</span></div></button>`).join(''))}
-  <button class="btn" onclick="publish()">Publish trip</button></div>`;
+  const p=S.post, st=S.postStep||1, opts=sel=>Object.entries(CITIES).map(([k,c])=>`<option value="${k}" ${k===sel?'selected':''}>${c.n}</option>`).join('');
+  const steps=['Route','Time & seats','Price & rules'];
+  let body='';
+  if(st===1) body=`<div id="mapwrap">${postMap()}</div><p class="sub" id="dist">${distText()}</p>
+    <div class="two"><div class="field"><label for="pfa">Pickup spot</label><input class="input" id="pfa" autocomplete="off" value="${esc(p.fromA)}" placeholder="e.g. Kubwa" onfocus="this.select();openSugg('pfa',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.fromA=this.value;S.post.fromLL=null;S.post.touched=true;updPost();openSugg('pfa',this.value)"></div>
+    <div class="field"><label for="pta">Drop-off spot</label><input class="input" id="pta" autocomplete="off" value="${esc(p.toA)}" placeholder="e.g. Wuse 2" onfocus="this.select();openSugg('pta',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.toA=this.value;S.post.toLL=null;updPost();openSugg('pta',this.value)"></div></div>
+    <div class="sugg" id="sg-post" hidden></div>
+    <details class="more"><summary>Going to another city?</summary><div class="two" style="margin-top:10px"><div class="field"><label for="pfc">From city</label><select class="input" id="pfc" onchange="S.post.fromC=this.value;S.post.fromLL=null;updPost()">${opts(p.fromC)}</select></div>
+    <div class="field"><label for="ptc">To city</label><select class="input" id="ptc" onchange="S.post.toC=this.value;S.post.toLL=null;updPost()">${opts(p.toC)}</select></div></div></details>`;
+  if(st===2) body=`<div class="field"><span class="label">Day</span><div class="chips">${['Today','Tomorrow','Fri','Sat','Sun'].map(d=>`<button class="chip" aria-pressed="${d===p.day}" onclick="S.post.day='${d}';render()">${d}</button>`).join('')}</div></div>
+    <div class="field"><label for="ptm">Leaving at</label><input class="input" id="ptm" type="time" value="${p.time}" onchange="S.post.time=this.value"></div>
+    <div class="field"><span class="label">Seats for passengers</span><div class="stepper big"><button aria-label="Fewer seats" onclick="S.post.seats=Math.max(1,S.post.seats-1);render()">−</button><b>${p.seats}</b><button aria-label="More seats" onclick="S.post.seats=Math.min(S.user.veh.seats||4,S.post.seats+1);render()">+</button></div></div>`;
+  if(st===3) body=`<div class="field"><label for="pp">Price per seat (₦)</label><input class="input bigin" id="pp" type="number" inputmode="numeric" value="${p.price}" oninput="S.post.price=+this.value"></div>
+    <div class="toggle"><div><div class="name">Allow offers</div><div class="hint">Passengers can suggest a price.</div></div><button class="switch" aria-pressed="${p.neg}" aria-label="Allow offers" onclick="S.post.neg=!S.post.neg;render()"></button></div>
+    ${p.neg?`<div class="field"><label for="pfl">Lowest price you accept (₦)</label><input class="input" id="pfl" type="number" inputmode="numeric" value="${p.floor}" oninput="S.post.floor=+this.value"></div>`:''}
+    <h3>Trip rules <span class="swipe">Swipe ${ic('arrow',12)}</span></h3>
+    ${rail(RULES.map((r,i)=>`<button class="rule" aria-pressed="${p.rules.includes(r.k)}" onclick="toggleRule(${i},this)"><span class="ico">${ic(r.ic,18)}</span><div><b>${esc(r.k)}</b><span class="d">${esc(r.d)}</span></div></button>`).join(''))}
+    <div class="card sumcard"><div class="meta">Summary</div><div class="name">${esc(p.fromA||CITIES[p.fromC].n)} → ${esc(p.toA||CITIES[p.toC].n)}</div><div class="meta">${esc(p.day)} ${to12(p.time)} · ${p.seats} seats · ${naira(p.price||0)} each</div></div>`;
+  return `<div class="stephead"><h2>Post a trip</h2><span class="meta">Step ${st} of 3 · ${steps[st-1]}</span></div><div class="steps sbar">${[1,2,3].map(i=>`<i class="${i<=st?'on':''}"></i>`).join('')}</div>
+  ${body}
+  <div class="dock">${st>1?`<button class="btn ghost" onclick="S.postStep=${st-1};render();$('#screen').scrollTop=0">Back</button>`:''}${st<3?`<button class="btn" onclick="postNext()">Next</button>`:`<button class="btn" onclick="publish()">Publish trip</button>`}</div>`;
 }
+function postNext(){ const p=S.post, st=S.postStep||1;
+  if(st===1&&p.fromC===p.toC&&(!p.fromA.trim()||!p.toA.trim()||p.fromA.trim().toLowerCase()===p.toA.trim().toLowerCase())){ toast('Add a pickup and a drop-off spot'); return; }
+  S.postStep=st+1; render(); $('#screen').scrollTop=0; }
 function publish(){
   const p=S.post; if(p.fromC===p.toC&&(!p.fromA.trim()||!p.toA.trim()||p.fromA.trim().toLowerCase()===p.toA.trim().toLowerCase())){ toast('Add different pickup and drop-off spots'); return; } if(!(p.price>0)){ toast('Add a price per seat'); return; }
   const t={id:S.nextId++,mine:true,driver:'You',rating:4.9,count:42,fromC:p.fromC,toC:p.toC,from:CITIES[p.fromC].n+(p.fromA.trim()?' · '+p.fromA.trim():''),to:CITIES[p.toC].n+(p.toA.trim()?' · '+p.toA.trim():''),
     when:p.day+' · '+to12(p.time),seats:p.seats,cap:p.seats,price:p.price,neg:p.neg,floor:p.floor,boosted:false,car:S.user.veh.make+' '+S.user.veh.model+', '+(S.user.veh.color||'').toLowerCase(),rules:p.rules.length?[...p.rules]:[]};
-  if(!p.neg) t.floor=0; S.trips.push(t); S.dtab='up'; go('dTrips'); toast('Trip published. Passengers can request seats now.');
+  if(!p.neg) t.floor=0; S.trips.push(t); S.dtab='up'; S.postStep=1; go('dTrips'); toast('Trip published. Passengers can request seats now.');
 }
 
 /* ---------- profile ---------- */
@@ -809,7 +826,7 @@ function vProfile(){
   const em=u.em&&u.em.name?esc(u.em.name)+' · '+esc(u.em.phone):'Add someone we alert in an emergency';
   const safety=`<h3>Safety</h3><div class="card">${lrow('shield','Emergency contact',em,"S.sheet={type:'em'};render()")}
     ${lrow('share','Share every trip automatically','Your emergency contact gets a live link',null,sw(u.autoShare,'S.user.autoShare=!S.user.autoShare;render()','Share trips automatically'))}</div>`;
-  const support=`<h3>Help</h3><div class="card">${lrow('help','Help and support','Chat with us, report a problem',soon('Support'))}${lrow('doc','Terms and privacy','How we use and protect your data',soon('Terms and privacy'))}</div>
+  const support=`<h3>Help</h3><div class="card">${lrow('help','Help and support','Chat with us, report a problem',soon('Support'))}${lrow('doc','Terms and privacy','How we use and protect your data',soon('Terms and privacy'))}${lrow('star','Demo shortcuts','Skip buttons and demo codes for presentations',null,sw(S.demo,'S.demo=!S.demo;render()','Demo shortcuts'))}</div>
     <div class="card">${lrow('logout','Sign out','',"startOnb()",'')}</div><p class="hint center" style="margin:6px 0 4px">RideLink 1.0 · Prototype</p>`;
   if(!d){
     return head+`<h3>Account</h3><div class="card">${lrow('edit','Personal details',esc(u.phone)+(u.email?' · '+esc(u.email):''),"S.sheet={type:'me'};render()")}
