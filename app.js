@@ -747,7 +747,11 @@ function vReq(){
    :`<div class="note">${i.status==='accepted'?'Seat confirmed.':i.status==='countered'?'You sent a counter of '+naira(i.counter)+'. Waiting for their reply.':'You declined this request.'}</div>`}`;
 }
 const PER={today:'Today',week:'This week',month:'This month',all:'All time'};
-function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} render(); }
+function heroHTML(){ return `<div class="hero" id="hero"><div class="row between"><div class="meta">Earned · ${PER[S.earnP]}</div><button class="eye" onclick="toggleBal()" aria-label="${S.hideBal?'Show':'Hide'} earnings">${ic(S.hideBal?'eyeoff':'eye',18)}</button></div>
+    <div class="big">${S.hideBal?'₦ ••••••':naira(S.earn[S.earnP])}</div>
+    <div class="pers" role="tablist">${Object.entries(PER).map(([k,l])=>`<button role="tab" aria-selected="${S.earnP===k}" onclick="setPer('${k}')">${{today:'Today',week:'Week',month:'Month',all:'All time'}[k]}</button>`).join('')}</div></div>` }
+function setPer(k){ S.earnP=k; const h=$('#hero'); if(h) h.outerHTML=heroHTML(); }
+function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} const h=$('#hero'); if(h&&S.view==='dTrips'&&S.dtab==='up'){ h.outerHTML=heroHTML(); } else render(); }
 function pastCard(t){
   const pax=t.pax||[], tot=pax.reduce((x,p)=>x+p.amount,0)||t.earned||0;
   return `<details class="card past"><summary><div class="grow"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><div class="meta">${esc(t.when)} · ${pax.length||t.riders||0} passengers</div></div><span class="chip good">${S.hideBal?'₦ •••':naira(t.earned||tot)}</span><span class="chev">${ic('chev',16)}</span></summary>
@@ -764,9 +768,7 @@ function vDTrips(){
   const card=t=>`<div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div>${t.live?'<span class="chip good">On the way</span>':t.boosted?'<span class="chip promo">Promoted</span>':`<b class="price">${naira(t.price)}</b>`}</div>
       <div class="meta">${esc(t.when)} · ${t.cap-t.seats} of ${t.cap} seats filled</div><div class="prog"><i style="width:${(t.cap-t.seats)/t.cap*100}%"></i></div>
       <div class="btns"><button class="btn sm" onclick="startTrack(${t.id},'driver')">${t.live?'Open live trip':'Start trip'}</button>${t.boosted||t.live?'':`<button class="btn boost sm" onclick="S.sheet={type:'boost',tripId:${t.id}};render()">Boost</button>`}</div></div>`;
-  const hero=`<div class="hero"><div class="row between"><div class="meta">Earned · ${PER[S.earnP]}</div><button class="eye" onclick="toggleBal()" aria-label="${S.hideBal?'Show':'Hide'} earnings">${ic(S.hideBal?'eyeoff':'eye',18)}</button></div>
-    <div class="big">${S.hideBal?'₦ ••••••':naira(S.earn[S.earnP])}</div>
-    <div class="pers" role="tablist">${Object.entries(PER).map(([k,l])=>`<button role="tab" aria-selected="${S.earnP===k}" onclick="S.earnP='${k}';render()">${{today:'Today',week:'Week',month:'Month',all:'All time'}[k]}</button>`).join('')}</div></div>`;
+  const hero=heroHTML();
   const empty=`<div class="empty"><b>${up?'No upcoming trips':'No past trips yet'}</b>${up?'Post a trip from the middle button.':'Finished trips show up here.'}</div>`;
   return `<h2>My trips</h2><div class="tabs2" role="tablist" style="margin-top:8px"><button role="tab" aria-selected="${up}" onclick="S.dtab='up';render()">Active</button><button role="tab" aria-selected="${!up}" onclick="S.dtab='past';render()">Past</button></div>
   ${up?hero+`<h3>Your trips</h3>${list.length?list.map(card).join(''):empty}`+(reqs.length?`<h3>Requests (${reqs.length})</h3>${reqs.map(incomingCard).join('')}`:`<h3>Requests</h3><div class="note">New seat requests show up here.</div>`)
@@ -899,12 +901,14 @@ function buyBoost(id){ const t=trip(id), plans=['3 hours','12 hours','24 hours']
 function submitRate(bid){ const b=S.bookings.find(x=>x.id===bid); if(b) b.rated=true; S.sheet=null; render(); toast('Thanks. Your rating helps other riders.'); }
 
 /* ---------- shell: header, tabs, render ---------- */
+let lastHdr='', lastTabs='';
 function renderHeader(){
-  $('#hdr').innerHTML=`<button class="logo" onclick="goHome()" aria-label="RideLink home"><img class="full" src="assets/logo.png" alt="RideLink"><img class="mark" src="assets/logo-mark.png" alt="RideLink"></button>
+  const h=`<button class="logo" onclick="goHome()" aria-label="RideLink home"><img class="full" src="assets/logo.png" alt="RideLink"><img class="mark" src="assets/logo-mark.png" alt="RideLink"></button>
   <div class="seg" role="tablist" aria-label="Mode" data-m="${S.mode}"><span class="thumb"></span>
     <button role="tab" aria-selected="${S.mode==='passenger'}" onclick="setMode('passenger')">${ic('profile',14)}<span class="l1">Passenger</span></button>
     <button role="tab" aria-selected="${S.mode==='driver'}" onclick="setMode('driver')">${ic('car',14)}<span class="l1">Driver</span></button></div>
   <button class="me" onclick="go('profile')" aria-label="Profile">${face(S.user)}</button>`;
+  if(h!==lastHdr){ $('#hdr').innerHTML=h; lastHdr=h; }
 }
 const TABS = {
   passenger:[['trips','Trips','trips'],['find','Find a ride','find'],['profile','Profile','profile']],
@@ -912,9 +916,10 @@ const TABS = {
 };
 function renderTabs(){
   const sub={req:'dTrips',detail:'find',thread:'trips',confirmed:'trips',track:S.mode==='driver'?'dTrips':'trips'}, cur=sub[S.view]||S.view, n=unread();
-  $('#tabs').innerHTML=TABS[S.mode].map(([k,l,icn],idx)=> idx===1
+  const h=TABS[S.mode].map(([k,l,icn],idx)=> idx===1
     ? `<button class="fab" onclick="go('${k}')" ${cur===k?'aria-current="page"':''}><span class="disc">${ic(icn,24)}</span>${l}</button>`
     : `<button class="t" ${cur===k?'aria-current="page"':''} onclick="go('${k}')">${ic(icn,21)}${l}${idx===0&&n&&cur!==k?'<span class="dot" aria-label="New activity"></span>':''}</button>`).join('');
+  if(h!==lastTabs){ $('#tabs').innerHTML=h; lastTabs=h; }
 }
 const VIEWS = {req:vReq,find:vFind,detail:vDetail,thread:vThread,confirmed:vConfirmed,trips:vTrips,track:vTrack,profile:vProfile,post:vPost,dTrips:vDTrips};
 function render(){
