@@ -20,7 +20,7 @@ Fake data lives at the top of app.js (S.trips, S.offers, S.bookings, S.incoming,
   The target button on the map re-centres on you and keeps following.
 - From is filled with your current location automatically (the browser asks for permission once).
 - From, To, Pickup spot and Drop-off spot suggest places as you type. "Current location" is always first.
-- With no key (default) the app uses free OpenStreetMap streets (CARTO tiles), OSRM road routes and
+- With no key (default) the app uses free OpenStreetMap streets tiles, OSRM road routes and
   Photon place search, styled to match RideLink. These free services are fine for demos; for launch use
   paid plans or Google.
 - With a Google key in config.js the same features run on Google Maps, styled to match RideLink.

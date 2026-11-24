@@ -200,7 +200,7 @@ function gAdapter(el){
 function lAdapter(el){
   const map=L.map(el,{zoomControl:false,attributionControl:true,zoomSnap:.5}).setView([9.07,7.48],11);
   map.attributionControl.setPrefix(false);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const A=p=>[p.lat,p.lng]; let user,acc,car;
   const carIcon=(rot,col)=>L.divIcon({className:'lcar',iconSize:[26,26],html:`<svg viewBox="0 0 26 26" style="transform:rotate(${rot}deg)"><path d="M13 2l8 20-8-5-8 5z" fill="${col}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>`});
   return { view:(ll,z)=>map.setView(A(ll),z), fit:pts=>map.fitBounds(pts.map(A),{padding:[28,28]}),
@@ -238,7 +238,7 @@ async function suggest(q){
       const {suggestions}=await AutocompleteSuggestion.fetchAutocompleteSuggestions({input:q,includedRegionCodes:['ng'],...(S.loc?{origin:{lat:S.loc.lat,lng:S.loc.lng}}:{})});
       const l=suggestions.filter(s=>s.placePrediction).slice(0,6).map(s=>({label:s.placePrediction.mainText.text,sub:s.placePrediction.secondaryText?s.placePrediction.secondaryText.text:'',pred:s.placePrediction}));
       if(l.length) return l; }
-    else if(MAPMODE==='osm'){ const bias=S.loc?`&lat=${S.loc.lat}&lon=${S.loc.lng}`:'&lat=9.07&lon=7.48';
+    else if(MAPMODE==='osm'){ const bias=(S.loc&&S.loc.acc<1500?`&lat=${S.loc.lat}&lon=${S.loc.lng}`:'&lat=9.07&lon=7.48')+'&location_bias_scale=0.6';
       const j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
       const l=(j.features||[]).map(f=>{ const p=f.properties, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
         return {label:p.name||p.street||p.city,sub:[p.street&&p.name!==p.street?p.street:'',p.district||p.locality,p.city||p.county,p.state].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),ll,city:cityOf([p.city,p.county,p.state,p.name],ll)}; }).filter(x=>x.label);
@@ -328,16 +328,18 @@ function startLoc(ask){
 }
 async function firstFix(force){
   const r=await reverse(S.loc); S.loc.label=r.label; S.loc.city=r.city||CITIES[nearestCity(S.loc)].n;
-  if(force||(!S.fromPl&&!S.fromTyped)) useCurrent('from',!force);
+  if(LOC.want){ const f=LOC.want; LOC.want=null; useCurrent(f); return; }
+  if(force||(!S.fromPl&&!S.fromTyped&&S.loc.acc<=1500)) useCurrent('from',true);
   if(S.post&&!S.post.fromLL&&!S.post.touched){ const k=cityKey(S.loc.city); if(k){ S.post.fromC=k; S.post.fromA=r.label.split(',')[0]||S.post.fromA; S.post.fromLL={lat:S.loc.lat,lng:S.loc.lng}; } }
 }
 function useCurrent(field,quiet){
-  if(!S.loc){ startLoc(true); return; }
+  if(!quiet){ closeSugg(); const a=document.activeElement; if(a&&a.blur&&a.matches&&a.matches('input')) a.blur(); }
+  if(!S.loc){ LOC.want=field; startLoc(true); return; }
   const L0={lat:S.loc.lat,lng:S.loc.lng};
   if(field==='from'){ S.fromPl={label:'Current location',sub:S.loc.label||'',ll:L0,cur:true}; S.fromTxt='Current location'; S.from=S.loc.city||''; S.selTrip=null; }
   if(field==='pfa'){ S.post.fromA=(S.loc.label||'').split(',')[0]||'Current location'; S.post.fromLL=L0; const k=cityKey(S.loc.city); if(k) S.post.fromC=k; S.post.touched=true; }
   closeSugg(); const a=document.activeElement; if(!(a&&a.matches&&a.matches('input'))||!quiet) render();
-  if(!quiet) toast('Using your current location'+(S.loc.label?': '+S.loc.label:''));
+  if(!quiet) toast(S.loc.acc>1500?'Your location is approximate (about '+Math.round(S.loc.acc/1000)+' km). Type your area for a precise pickup.':'Using your current location'+(S.loc.label?': '+S.loc.label:''));
 }
 function locateMe(){ if(S.loc) useCurrent('from'); else { LOC.wantFrom=true; startLoc(true); setTimeout(()=>{ if(S.loc&&LOC.wantFrom){ LOC.wantFrom=false; useCurrent('from'); } },2500); } }
 /* --- suggestions dropdown for From, To, Pickup, Drop-off --- */
@@ -349,14 +351,16 @@ function openSugg(field,q){
 function drawSugg(){
   const box=$('#sg-'+(SG.field==='from'||SG.field==='to'?'find':'post')); if(!box) return;
   const cur=(SG.field==='from'||SG.field==='pfa');
-  const rows=(cur?[`<button class="sg cur" onpointerdown="event.preventDefault()" onclick="useCurrent('${SG.field}')"><span class="ico">${ic('locate',16)}</span><span class="grow"><b>Current location</b><small>${S.loc&&S.loc.label?esc(S.loc.label):LOC.denied?'Location is off':'Use where you are now'}</small></span></button>`]:[])
+  const rows=(cur?[`<button class="sg cur" onpointerdown="event.preventDefault()" onclick="useCurrent('${SG.field}')"><span class="ico">${ic('locate',16)}</span><span class="grow"><b>Current location</b><small>${S.loc&&S.loc.label?esc(S.loc.label)+(S.loc.acc>1500?' · approximate':''):LOC.denied?'Location is off':'Use where you are now'}</small></span></button>`]:[])
     .concat(SG.list.map((s,i)=>`<button class="sg" onpointerdown="event.preventDefault()" onclick="pickSugg(${i})"><span class="ico">${ic('pin',16)}</span><span class="grow"><b>${esc(s.label)}</b><small>${esc(s.sub||'')}</small></span></button>`));
   box.innerHTML=rows.join(''); box.hidden=!rows.length;
 }
+document.addEventListener('pointerdown',e=>{ if(SG.field&&!e.target.closest('.sugg,#qf,#qt,#pfa,#pta')) closeSugg(); },true);
 function blurSugg(){ const a=document.activeElement; if(!(a&&a.matches&&a.matches('#qf,#qt,#pfa,#pta'))) closeSugg(); }
 function closeSugg(){ SG.field=null; document.querySelectorAll('.sugg').forEach(b=>{ b.hidden=true; b.innerHTML=''; }); }
 async function pickSugg(i){
-  const f=SG.field, it=SG.list[i]; if(!it) return; const s=await resolveSugg(it); if(!s) return; closeSugg();
+  const f=SG.field, it=SG.list[i]; if(!it) return; closeSugg(); const a=document.activeElement; if(a&&a.blur) a.blur();
+  const s=await resolveSugg(it); if(!s) return;
   const city=s.city||'', lab=s.label;
   if(f==='from'){ S.fromPl={label:lab,sub:s.sub,ll:s.ll}; S.fromTxt=lab; S.from=city||lab; S.fromTyped=true; }
   if(f==='to'){ S.toPl={label:lab,sub:s.sub,ll:s.ll}; S.toTxt=lab; S.to=city||lab; }
