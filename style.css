@@ -286,7 +286,7 @@ button.rule[aria-pressed="true"]::after{content:"";position:absolute;top:9px;rig
 #screen{position:relative}
 #maplayer{position:absolute;top:0;left:0;width:0;height:0;z-index:2}
 .gm{position:absolute;border-radius:18px;overflow:hidden;background:#e9efed}
-.gmc{position:absolute;inset:0;background:#eef2f0}
+.gm .gmc{position:absolute!important;top:0;left:0;width:100%;height:100%;background:#eef2f0}
 .map.g{background:#e9efed}
 .gslot{height:210px}
 .maptag{z-index:3}

@@ -268,7 +268,7 @@ function createMap(k){
   const sp=MAPS[k]; if(!sp) return null;
   const el=document.createElement('div'); el.className='gm'; el.innerHTML=`<div class="gmc"></div><button class="mloc" aria-label="Show my location">${ic('locate',18)}</button>`;
   const m={el,k,follow:false}; el.querySelector('.mloc').onclick=()=>{ m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
-  if(MAPMODE==='osm'||gReady) initMap(m); return m;
+  return m;
 }
 async function initMap(m){
   if(m.api) return; const sp=MAPS[m.k], host=m.el.querySelector('.gmc');
@@ -294,7 +294,8 @@ function syncMaps(){
       if(mapEls.size>6){ for(const [ok,om] of mapEls){ if(!want.has(ok)){ om.el.remove(); mapEls.delete(ok); if(mapEls.size<=6) break; } } } }
     const r=s.getBoundingClientRect(), w=(r.width/z)+'px', h=(r.height/z)+'px', sized=m.el.style.width!==w||m.el.style.height!==h;
     Object.assign(m.el.style,{top:((r.top-R.top)/z+sc.scrollTop)+'px',left:((r.left-R.left)/z)+'px',width:w,height:h});
-    if(sized&&m.api) m.api.resize();
+    if(!m.api&&!m.starting&&(MAPMODE==='osm'||gReady)){ m.starting=true; initMap(m); }
+    else if(sized&&m.api) m.api.resize();
   });
 }
 function resetMaps(mode){ MAPMODE=mode; mapEls.forEach(m=>m.el.remove()); mapEls.clear(); render(); }
