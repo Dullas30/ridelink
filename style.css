@@ -432,3 +432,5 @@ body:not(.bare) .dev-iphone #picker .pk-top{padding-top:58px}
 /* phone: white behind the status bar so the top blends into the header */
 body.bare,html:has(body.bare){background:#fff}
 body.bare .phone{background:var(--soft)}
+.gm iframe{display:block;width:100%;height:100%;border:0}
+a.gmlink{text-decoration:none}

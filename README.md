@@ -16,19 +16,15 @@ Plain HTML, CSS and JavaScript. No build step.
 Fake data lives at the top of app.js (S.trips, S.offers, S.bookings, S.incoming, S.earn).
 
 ## Maps and location
-- The map is live: the blue dot is your real position from the phone's GPS and it moves as you move.
-  The target button on the map re-centres on you and keeps following.
-- From is filled with your current location automatically (the browser asks for permission once).
-- From, To, Pickup spot and Drop-off spot suggest places as you type. "Current location" is always first.
-- With no key (default) the app uses free OpenStreetMap streets tiles, OSRM road routes and
-  Photon place search, styled to match RideLink. These free services are fine for demos; for launch use
-  paid plans or Google.
-- With a Google key in config.js the same features run on Google Maps, styled to match RideLink.
-  Enable "Maps JavaScript API", "Routes API", "Places API (New)" and "Geocoding API", and restrict the key
-  to your website address.
-- Location only works on http://localhost (Live Server) or https, not when you double-click index.html.
-- Where a page may not load map tiles (for example the shared preview link), the app falls back to a drawn map.
-- assets/vendor holds Leaflet 1.9.4 (BSD-2 licence) so the free map works offline from a CDN.
+- Maps use the free Google Maps embed (no key, no card). It knows Abuja streets and draws real road routes.
+- Live trip tracking uses an OpenStreetMap map so the car and your position can move on it.
+- "Open route in Google Maps", "Navigate with Google Maps" and "Directions to pickup" open the Google Maps app (free).
+- "Choose on map" lets people put a pin on their exact gate and add a landmark.
+- From is filled with your current location when the phone's location is precise.
+- Location only works on https (Vercel) or http://localhost (Live Server), not when you double-click index.html.
+- Optional: put a Google key in config.js to switch everything (search, live map) to the Google Maps JavaScript API.
+  Enable Maps JavaScript API, Routes API, Places API (New) and Geocoding API. Google needs a billing account for this.
+- Where a page may not load maps (for example the shared preview link), the app falls back to a drawn map.
 
 ## Screens
 On a real phone or foldable the device frame and switcher hide and the app fills the screen.

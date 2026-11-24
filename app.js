@@ -177,7 +177,7 @@ const mapBox = (inner, tag='Map preview') => `<div class="map"><div id="mapbox">
    Your position comes from the phone's GPS and updates as you move (the pulsing dot). Maps sit in #maplayer and are moved
    over their slot after each render, so they never reload when the screen redraws. */
 const CFG=window.RIDELINK_CONFIG||{}, GKEY=String(CFG.GOOGLE_MAPS_API_KEY||'').trim();
-let MAPMODE=GKEY?'google':(window.L?'osm':'svg'), gReady=false;
+let MAPMODE=GKEY?'google':'embed', gReady=false;  /* embed = free Google map, no key */
 const MAPS={}, mapEls=new Map(), geoCache={};
 const NG_BBOX='2.6,4.2,14.7,13.9';
 const LLc=c=>({lat:c.lat,lng:c.lon});
@@ -192,9 +192,11 @@ const llKey=ll=>ll?ll.lat.toFixed(4)+','+ll.lng.toFixed(4):'';
 const mapKey=sp=>(sp.aLL?llKey(sp.aLL):sp.a||'')+'|'+(sp.bLL?llKey(sp.bLL):sp.b||'');
 function gmap(sp, tag){
   if(MAPMODE==='svg') return mapBox(mapSVG({routes:sp.ac&&sp.bc&&sp.ac!==sp.bc?[{a:sp.ac,b:sp.bc,sel:true}]:[],car:sp.car}), tag||'Map preview');
-  const k=mapKey(sp); MAPS[k]=Object.assign(MAPS[k]||{},sp);
+  const k=mapKey(sp)+(sp.live?'|live':''); MAPS[k]=Object.assign(MAPS[k]||{},sp);
   return `<div class="map g"><div class="gslot" data-key="${esc(k)}"></div>${tag?`<span class="maptag">${esc(tag)}</span>`:''}</div>`;
 }
+const gmDir=(to,from)=>'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination='+encodeURIComponent(to)+(from?'&origin='+encodeURIComponent(from):'');
+const gmBtn=(label,to,from)=>`<a class="btn ghost gmlink" href="${gmDir(to,from)}" target="_blank" rel="noopener">${ic('pin',16)} ${label}</a>`;
 const brandCol=()=>getComputedStyle($('#phone')).getPropertyValue('--brand').trim()||'#0a5c4a';
 /* --- map adapters: same small interface for Google and Leaflet --- */
 const GSTYLE=[{elementType:'geometry',stylers:[{color:'#eef2f0'}]},{elementType:'labels.icon',stylers:[{visibility:'off'}]},{elementType:'labels.text.fill',stylers:[{color:'#5b6a64'}]},{elementType:'labels.text.stroke',stylers:[{color:'#f7faf8'}]},
@@ -266,7 +268,7 @@ async function suggest(q){
       const {suggestions}=await AutocompleteSuggestion.fetchAutocompleteSuggestions({input:q,includedRegionCodes:['ng'],...(S.loc?{origin:{lat:S.loc.lat,lng:S.loc.lng}}:{})});
       const l=suggestions.filter(s=>s.placePrediction).slice(0,6).map(s=>({label:s.placePrediction.mainText.text,sub:s.placePrediction.secondaryText?s.placePrediction.secondaryText.text:'',pred:s.placePrediction}));
       if(l.length) return l; }
-    else if(MAPMODE==='osm'){ const bias=(S.loc&&S.loc.acc<1500?`&lat=${S.loc.lat}&lon=${S.loc.lng}`:'&lat=9.07&lon=7.48')+'&location_bias_scale=0.6';
+    else { const bias=(S.loc&&S.loc.acc<1500?`&lat=${S.loc.lat}&lon=${S.loc.lng}`:'&lat=9.07&lon=7.48')+'&location_bias_scale=0.6';
       let j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox=6.70,8.40,7.90,9.60'+bias+'&q='+encodeURIComponent(q))).json();
       if(!(j.features||[]).length) j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
       const l=(j.features||[]).map(f=>{ const p=f.properties, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
@@ -302,7 +304,11 @@ async function routePath(A,B,sp){
 function createMap(k){
   const sp=MAPS[k]; if(!sp) return null;
   const el=document.createElement('div'); el.className='gm'; el.innerHTML=`<div class="gmc"></div><button class="mloc" aria-label="Show my location">${ic('locate',18)}</button>`;
-  const m={el,k,follow:false}; el.querySelector('.mloc').onclick=()=>{ m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
+  const m={el,k,follow:false}; el.querySelector('.mloc').onclick=()=>{ if(m.embed){ locateMe(); return; } m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
+  if(MAPMODE==='embed'&&!(sp.live&&window.L)){ m.embed=true;
+    const q=x=>encodeURIComponent(x), A=sp.aLL?sp.aLL.lat+','+sp.aLL.lng:sp.a, B=sp.bLL?sp.bLL.lat+','+sp.bLL.lng:sp.b;
+    const src=A&&B?`saddr=${q(A)}&daddr=${q(B)}`:A||B?`q=${q(A||B)}&z=${/^[^,]+, (Abuja, )?Nigeria$/.test(A||B)&&cityKey((A||B).split(',')[0])?12:16}`:(S.loc&&S.loc.acc<=1500?`q=${S.loc.lat},${S.loc.lng}&z=15`:'q=Abuja&z=12');
+    el.querySelector('.gmc').innerHTML=`<iframe title="Google Map" loading="eager" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?${src}&hl=en&output=embed"></iframe>`; }
   return m;
 }
 async function initMap(m){
@@ -329,7 +335,7 @@ function syncMaps(){
       if(mapEls.size>6){ for(const [ok,om] of mapEls){ if(!want.has(ok)){ om.el.remove(); mapEls.delete(ok); if(mapEls.size<=6) break; } } } }
     const r=s.getBoundingClientRect(), w=(r.width/z)+'px', h=(r.height/z)+'px', sized=m.el.style.width!==w||m.el.style.height!==h;
     Object.assign(m.el.style,{top:((r.top-R.top)/z+sc.scrollTop)+'px',left:((r.left-R.left)/z)+'px',width:w,height:h});
-    if(!m.api&&!m.starting&&(MAPMODE==='osm'||gReady)){ m.starting=true; initMap(m); }
+    if(!m.embed&&!m.api&&!m.starting&&(MAPMODE==='osm'||gReady||(MAPMODE==='embed'&&window.L))){ m.starting=true; initMap(m); }
     else if(sized&&m.api) m.api.resize();
   });
 }
@@ -577,7 +583,7 @@ function findTrips(){
 const nFilters=()=>S.filters.length+(S.maxPrice?1:0);
 const tripList = () => { const l=findTrips(); return l.length ? l.map(tripCard).join('') : `<div class="empty"><b>No trips match</b>Try another route or clear a filter.</div>${nFilters()?'<button class="btn ghost" onclick="clearFilters()">Clear filters</button>':''}`; };
 const findSpec = () => { const t=S.selTrip&&trip(S.selTrip); if(t) return tripPlaces(t);
-  return {a:S.fromPl?'':(S.from.trim()?place('',S.from.trim()):''),aLL:S.fromPl&&S.fromPl.ll,b:S.toPl?'':(S.to.trim()?place('',S.to.trim()):''),bLL:S.toPl&&S.toPl.ll,ac:cityKey(S.from),bc:cityKey(S.to)}; };
+  const inAbj=t=>t?t+(cityKey(t)||/abuja|fct/i.test(t)?'':', Abuja')+', Nigeria':''; return {a:S.fromPl?'':inAbj(S.from.trim()),aLL:S.fromPl&&S.fromPl.ll,b:S.toPl?'':inAbj(S.to.trim()),bLL:S.toPl&&S.toPl.ll,ac:cityKey(S.from),bc:cityKey(S.to)}; };
 const findMap = () => gmap(findSpec(), S.selTrip?'Selected trip':((S.fromTxt||S.from)&&(S.toTxt||S.to)?(S.fromTxt||S.from)+' to '+(S.toTxt||S.to):''));
 let fmT; function updFind(){ const l=$('#list'); if(l) l.innerHTML=tripList(); const c=$('#count'); if(c) c.textContent=countText();
   clearTimeout(fmT); fmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=findMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
@@ -623,7 +629,7 @@ function vDetail(){
     <div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
     <div class="chips"><span class="chip ${t.seats?'good':'bad'}">${t.seats} seat${t.seats===1?'':'s'} left</span>${t.neg?'<span class="chip">Negotiable</span>':'<span class="chip">Fixed price</span>'}</div></div>
   <h3>Trip rules <span class="swipe">Swipe ${ic('arrow',12)}</span></h3>${rail(rules.map(ruleCard).join(''))}
-  ${act}</div>`;
+  ${act}<div class="btns">${gmBtn('Open route in Google Maps',tripPlaces(t).b,tripPlaces(t).a)}</div></div>`;
 }
 function sendOffer(tripId, amount, existingId){
   const t=trip(tripId); let o;
@@ -674,13 +680,13 @@ function startTrack(tripId, role, bid){ stopTrack(); const tr=trip(tripId); tr.l
 function stopTrack(){ if(S.track&&S.track.timer){ clearInterval(S.track.timer); S.track.timer=null; } }
 const etaText = () => { const T=S.track,t=trip(T.tripId); const m=Math.round((1-T.t)*tMins(t)); return T.arrived?'Arrived':(m<=1?'Arriving now':dur(m)+' left'); };
 function tick(){ const T=S.track; if(!T||S.view!=='track'){ stopTrack(); return; } T.t=Math.min(1,T.t+0.012); trip(T.tripId).prog=T.t;
-  if(MAPMODE==='svg'){ const w=$('#mapwrap'); if(w) w.innerHTML=trackMap(); } else { const m=mapEls.get(mapKey(tripPlaces(trip(T.tripId)))); if(m&&m.map) moveCar(m,T.t); } const e=$('#eta'); if(e) e.textContent=etaText(); const b=$('#prog'); if(b) b.style.width=(T.t*100)+'%';
+  if(MAPMODE==='svg'){ const w=$('#mapwrap'); if(w) w.innerHTML=trackMap(); } else { const m=mapEls.get(mapKey(tripPlaces(trip(T.tripId)))+'|live'); if(m&&m.map) moveCar(m,T.t); } const e=$('#eta'); if(e) e.textContent=etaText(); const b=$('#prog'); if(b) b.style.width=(T.t*100)+'%';
   if(T.t>=1){ stopTrack(); arrive(); } }
 function arrive(){ const T=S.track; T.t=1; T.arrived=true; const t=trip(T.tripId); t.live=false; t.prog=0;
   if(T.role==='passenger'){ const b=S.bookings.find(x=>x.id===T.bid); if(b) b.status='completed'; S.sheet={type:'rate',bid:T.bid,stars:0}; }
   else { t.past=true; t.earned=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').reduce((s,i)=>s+i.amount,0); t.pax=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').map(i=>({name:i.name,amount:i.amount})); t.riders=t.pax.length; t.when=t.when.replace(/^\w+/,'Today'); ['today','week','month','all'].forEach(k=>S.earn[k]+=t.earned); S.dtab='past'; toast('Trip complete. '+naira(t.earned)+' is on its way to you.'); }
   render(); }
-const trackMap = () => { const T=S.track,t=trip(T.tripId); return gmap(Object.assign(tripPlaces(t),{car:T.t}),T.arrived?'Trip finished':'Live'); };
+const trackMap = () => { const T=S.track,t=trip(T.tripId); return gmap(Object.assign(tripPlaces(t),{car:T.t,live:true}),T.arrived?'Trip finished':'Live'); };
 function vTrack(){
   const T=S.track; if(!T) return vTrips(); const t=trip(T.tripId), drv=T.role==='driver';
   const riders=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted');
@@ -690,7 +696,8 @@ function vTrack(){
     <div class="prog"><i id="prog" style="width:${T.t*100}%"></i></div>
     <div class="meta">${drv?esc(S.user.veh.make+' '+S.user.veh.model+' · '+S.user.veh.plate):esc(t.driver)+' · '+esc(t.car)}</div></div>
   ${drv?`<h3>Passengers (${riders.length})</h3>${riders.map(r=>`<div class="card row between"><div class="row"><div class="avatar">${initials(r.name)}</div><div class="name">${esc(r.name)}</div></div><button class="chip" aria-pressed="${T.picked.includes(r.id)}" onclick="togglePick(${r.id},this)">${T.picked.includes(r.id)?'Picked up':'Mark picked up'}</button></div>`).join('')||'<div class="note">No passengers booked.</div>'}
-    <button class="btn" ${T.arrived?'disabled':''} onclick="stopTrack();arrive()">End trip</button>`
+    <div class="btns">${gmBtn('Navigate with Google Maps',tripPlaces(t).b,tripPlaces(t).a)}</div>
+    <button class="btn" style="margin-top:10px" ${T.arrived?'disabled':''} onclick="stopTrack();arrive()">End trip</button>`
   :`<div class="label" style="text-align:center">Pickup code</div><div class="code">${(S.bookings.find(b=>b.id===T.bid)||{code:'0000'}).code.split('').join(' ')}</div>
     <div class="btns"><button class="btn ghost" onclick="toast('Demo: a live link would be copied to your clipboard')">${ic('share',16)} Share trip</button><button class="btn bad" onclick="S.sheet={type:'sos'};render()">${ic('sos',16)} SOS</button></div>
     <div class="btns"><button class="btn ghost" onclick="toast('Demo: chat opens here')">${ic('chat',16)} Message driver</button>${T.arrived?'':'<button class="btn ghost" onclick="stopTrack();arrive()">Skip to arrival</button>'}</div>`}
@@ -720,7 +727,8 @@ function vReq(){
   <div class="card"><div class="row between"><div><div class="meta">${open?'Offers':'Agreed'}</div><div class="price" style="font-size:22px">${naira(i.status==='countered'?i.counter:i.amount)}</div></div><span class="chip ${i.amount<t.price?'promo':'good'}">${gap(i.amount,t.price)}</span></div>
     <div class="route"><div>${esc(i.pickup)}, ${esc(t.from.split(' · ')[0])}<small>${esc(t.when)}</small></div><div>${esc(i.drop)}, ${esc(t.to.split(' · ')[0])}</div></div>
     ${row('Seats','1')}${row('Luggage',esc(i.bag))}${row('Your listed price',naira(t.price))}
-    ${i.note?`<div class="note" style="margin-top:8px">“${esc(i.note)}”</div>`:''}</div>
+    ${i.note?`<div class="note" style="margin-top:8px">“${esc(i.note)}”</div>`:''}
+    <div class="btns">${gmBtn('Directions to pickup',i.pickup+', '+t.from.split(' · ')[0]+', Nigeria')}</div></div>
   ${i.review?`<h3>From another driver</h3><div class="card"><div class="meta">${esc(i.review)}</div></div>`:''}
   ${open?`<button class="btn" onclick="incomingAct(${i.id},'accept')">Accept ${naira(i.amount)}</button>
     <div class="btns">${t.neg?`<button class="btn ghost" onclick="S.sheet={type:'counter',inc:${i.id}};render()">Counter</button>`:''}<button class="btn bad" onclick="incomingAct(${i.id},'decline')">Decline</button></div>
