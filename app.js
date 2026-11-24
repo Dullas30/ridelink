@@ -1,6 +1,8 @@
 'use strict';
 /* RideLink prototype v2: plain JS, no build step. All data is fake and lives in S below. */
 const $ = s => document.querySelector(s);
+/* Launch area: Abuja only. Set to false later to open intercity trips again. */
+const ABUJA_ONLY = true;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
 const initials = n => String(n||'?').trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
@@ -100,7 +102,7 @@ const S = {
     notif:true,autoShare:true,places:{home:'Wuse 2, Abuja',work:'Central Business District, Abuja'},
     pStats:{trips:23,rating:4.9,saved:18400},dStats:{trips:42,rating:4.9,accept:96},bank:'GTBank · •••• 4821',offersOn:true},
   onb:{step:'splash',only:null,roles:['passenger'],phone:'',name:'',nin:'',licNo:'',skipped:false,docs:{lic:null,selfie:null,carFront:null,carBack:null,carIn:null,papers:null},veh:{make:'',model:'',color:'',plate:'',seats:3}},
-  from:'Abuja', to:'', fromTxt:'', toTxt:'', fromPl:null, toPl:null, fromTyped:false, loc:null, filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
+  from:'', to:'', fromTxt:'', toTxt:'', fromPl:null, toPl:null, fromTyped:false, loc:null, filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
   ptab:'up', dtab:'up', track:null, lastBooking:null, nextId:100,
   trips:[
     {id:21,driver:'Chidi Nwosu',rating:4.9,count:156,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Central Business District',when:'Today · 7:15 AM',seats:3,cap:4,price:1500,neg:true,boosted:true,car:'Toyota Corolla, white',rules:['AC','Quiet ride','Set pickup points']},
@@ -117,10 +119,10 @@ const S = {
     {id:6,driver:'Hauwa Garba',rating:4.8,count:87,fromC:'kaduna',toC:'abuja',from:'Kaduna · Rigasa',to:'Abuja · Jabi',when:'Tomorrow · 3:00 PM',seats:3,cap:3,price:6500,neg:true,car:'Kia Cerato, red',rules:['AC','Luggage ok','Quiet ride']},
     {id:7,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Central Business District',when:'Tomorrow · 7:00 AM',seats:2,cap:3,price:1500,neg:true,floor:1200,boosted:false,car:'Toyota Camry, silver',rules:['AC','Luggage ok']},
     {id:8,past:true,driver:'Hauwa Garba',rating:4.8,count:87,fromC:'kaduna',toC:'abuja',from:'Kaduna · Rigasa',to:'Abuja · Jabi',when:'Fri 14 Nov · 3:00 PM',seats:0,cap:3,price:6500,neg:true,car:'Kia Cerato, red',rules:['AC']},
-    {id:9,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'jos',from:'Abuja · Wuse 2',to:'Jos · Terminus',when:'Sun 16 Nov · 8:00 AM',seats:0,cap:3,price:7500,neg:true,car:'Toyota Camry, silver',rules:['AC'],earned:22500,riders:3,
-      pax:[{name:'Chinedu Okeke',amount:7500},{name:'Amaka Eze',amount:7500},{name:'Bala Musa',amount:7500}],rated:4.9},
-    {id:10,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'kaduna',toC:'abuja',from:'Kaduna · Barnawa',to:'Abuja · Wuse 2',when:'Thu 13 Nov · 4:00 PM',seats:1,cap:3,price:6500,neg:true,car:'Toyota Camry, silver',rules:['AC','Luggage ok'],earned:12500,riders:2,
-      pax:[{name:'Fatima Sani',amount:6500},{name:'Ifeanyi Obi',amount:6000}],rated:5}
+    {id:9,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Maitama',when:'Mon 24 Nov · 7:00 AM',seats:0,cap:3,price:1500,neg:true,car:'Toyota Camry, silver',rules:['AC'],earned:4500,riders:3,
+      pax:[{name:'Chinedu Okeke',amount:1500},{name:'Amaka Eze',amount:1500},{name:'Bala Musa',amount:1500}],rated:4.9},
+    {id:10,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Central Business District',to:'Abuja · Kubwa',when:'Fri 21 Nov · 5:30 PM',seats:1,cap:3,price:1500,neg:true,car:'Toyota Camry, silver',rules:['AC','Luggage ok'],earned:2800,riders:2,
+      pax:[{name:'Fatima Sani',amount:1500},{name:'Ifeanyi Obi',amount:1300}],rated:5}
   ],
   offers:[],
   bookings:[],
@@ -130,7 +132,7 @@ const S = {
     {id:3,tripId:7,name:'Yusuf Danjuma',amount:1500,status:'accepted',rating:4.8,trips:58,since:'2023',pickup:'Phase 4, Kubwa',drop:'Central Bank',bag:'1 suitcase',note:'',review:''}
   ],
   post:{fromC:'abuja',toC:'abuja',fromA:'Kubwa',toA:'Central Business District',day:'Tomorrow',time:'07:00',seats:3,price:1500,neg:true,floor:1200,rules:['AC','Luggage ok']},
-  earn:{today:8000,week:48500,month:186000,all:1240000}, earnP:'week', hideBal:false,
+  earn:{today:3000,week:18500,month:72000,all:410000}, earnP:'week', hideBal:false,
   reviews:[{n:'Chinedu O.',s:5,t:'Smooth driving and left right on time.'},{n:'Amaka E.',s:5,t:'Clean car, cold AC, helped with my bag.'},{n:'Bala M.',s:4,t:'Good trip. Pickup spot was easy to find.'}]
 };
 try{ S.hideBal=localStorage.getItem('rl_hideBal')==='1'; }catch(e){}
@@ -236,7 +238,7 @@ function lAdapter(el){
 async function geocode(q){
   if(!q) return null; if(q in geoCache) return geoCache[q]; let r=null;
   try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({address:q,region:'ng'}); const l=res.results[0].geometry.location; r={lat:l.lat(),lng:l.lng()}; }
-    else { const qq=encodeURIComponent(q.replace(/, Nigeria$/,'')); for(const bb of ['6.70,8.40,7.90,9.60',NG_BBOX]){
+    else { const qq=encodeURIComponent(q.replace(/, Nigeria$/,'')); for(const bb of ABUJA_ONLY?['6.70,8.40,7.90,9.60']:['6.70,8.40,7.90,9.60',NG_BBOX]){
         const j=await (await fetch('https://photon.komoot.io/api/?limit=1&lang=en&lat=9.06&lon=7.49&bbox='+bb+'&q='+qq)).json(); const f=j.features&&j.features[0];
         if(f){ r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; break; } } } }catch(e){}
   return geoCache[q]=r;
@@ -259,9 +261,9 @@ async function reverse(ll){
   }catch(e){ return {label:'',city:CITIES[nearestCity(ll)].n}; }
 }
 const localSugg=q=>{ q=q.trim().toLowerCase(); const seen=new Set(), out=[];
-  S.trips.forEach(t=>[t.from,t.to].forEach(s=>{ const [c,a]=s.split(' · '); const lab=a||c; if(!seen.has(s)&&(!q||s.toLowerCase().includes(q))){ seen.add(s); out.push({label:lab,sub:a?c:'Nigeria',city:c}); } }));
+  S.trips.filter(t=>!ABUJA_ONLY||(t.fromC==='abuja'&&t.toC==='abuja')).forEach(t=>[t.from,t.to].forEach(s=>{ const [c,a]=s.split(' · '); const lab=a||c; if(!seen.has(s)&&(!q||s.toLowerCase().includes(q))){ seen.add(s); out.push({label:lab,sub:a?c:'Nigeria',city:c}); } }));
   Object.keys(AREAS).forEach(a=>{ const k='Abuja · '+a; if(!seen.has(k)&&(!q||a.toLowerCase().includes(q))){ seen.add(k); out.push({label:a,sub:'Abuja',city:'Abuja',ll:{lat:AREAS[a][0],lng:AREAS[a][1]}}); } });
-  Object.values(CITIES).forEach(c=>{ if(!seen.has(c.n)&&(!q||c.n.toLowerCase().includes(q))){ seen.add(c.n); out.push({label:c.n,sub:'Nigeria',city:c.n,ll:LLc(c)}); } });
+  if(!ABUJA_ONLY) Object.values(CITIES).forEach(c=>{ if(!seen.has(c.n)&&(!q||c.n.toLowerCase().includes(q))){ seen.add(c.n); out.push({label:c.n,sub:'Nigeria',city:c.n,ll:LLc(c)}); } });
   return out.slice(0,6); };
 async function suggest(q){
   if(q.trim().length<2) return localSugg(q);
@@ -272,11 +274,11 @@ async function suggest(q){
       if(l.length) return l; }
     else { const bias=(S.loc&&S.loc.acc<1500?`&lat=${S.loc.lat}&lon=${S.loc.lng}`:'&lat=9.07&lon=7.48')+'&location_bias_scale=0.6';
       let j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox=6.70,8.40,7.90,9.60'+bias+'&q='+encodeURIComponent(q))).json();
-      if(!(j.features||[]).length) j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
+      if(!ABUJA_ONLY&&!(j.features||[]).length) j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
       const l=(j.features||[]).map(f=>{ const p=f.properties, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
         return {label:p.name||p.street||p.city,sub:[p.street&&p.name!==p.street?p.street:'',p.district||p.locality,p.city||p.county,p.state].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),ll,city:cityOf([p.city,p.county,p.state,p.name],ll)}; }).filter(x=>x.label);
       if(l.length>=3) return l;
-      try{ const vb='&viewbox=7.20,9.25,7.65,8.85'; const n=await (await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=ng'+vb+'&q='+encodeURIComponent(q))).json();
+      try{ const vb='&viewbox=6.70,9.60,7.90,8.40'+(ABUJA_ONLY?'&bounded=1':''); const n=await (await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=ng'+vb+'&q='+encodeURIComponent(q))).json();
         const seen=new Set(l.map(x=>x.label.toLowerCase()));
         n.forEach(r=>{ const a=r.address||{}, lab=r.name||a.road||r.display_name.split(',')[0]; if(!lab||seen.has(lab.toLowerCase())) return; seen.add(lab.toLowerCase());
           const ll={lat:+r.lat,lng:+r.lon}; l.push({label:lab,sub:[a.road&&a.road!==lab?a.road:'',a.suburb||a.neighbourhood||a.quarter,a.city||a.state].filter((v,i,x)=>v&&x.indexOf(v)===i).join(', '),ll,city:cityOf([a.city,a.county,a.state],ll)}); });
@@ -307,7 +309,7 @@ function createMap(k){
   const sp=MAPS[k]; if(!sp) return null;
   const el=document.createElement('div'); el.className='gm'; el.innerHTML=`<div class="gmc"></div><button class="mloc" aria-label="Show my location">${ic('locate',18)}</button>`;
   const m={el,k,follow:false}; el.querySelector('.mloc').onclick=()=>{ if(m.embed){ locateMe(); return; } m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
-  if(MAPMODE==='embed'&&!(sp.live&&window.L)){ m.embed=true;
+  if(MAPMODE==='embed'&&!(sp.live&&window.L)){ m.embed=true; el.classList.add('emb');
     const q=x=>encodeURIComponent(x), A=sp.aLL?sp.aLL.lat+','+sp.aLL.lng:sp.a, B=sp.bLL?sp.bLL.lat+','+sp.bLL.lng:sp.b;
     const src=A&&B?`saddr=${q(A)}&daddr=${q(B)}`:A||B?`q=${q(A||B)}&z=${/^[^,]+, (Abuja, )?Nigeria$/.test(A||B)&&cityKey((A||B).split(',')[0])?12:16}`:(S.loc&&S.loc.acc<=1500?`q=${S.loc.lat},${S.loc.lng}&z=15`:'q=Abuja&z=12');
     el.querySelector('.gmc').innerHTML=`<iframe title="Google Map" loading="eager" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?${src}&hl=en&output=embed"></iframe>`; }
@@ -373,7 +375,7 @@ function startLoc(ask){
 }
 /* the first reading is often rough (Wi-Fi / cell); as GPS sharpens, update the label and the pickup */
 let rlT; function refineLoc(){ clearTimeout(rlT); rlT=setTimeout(async()=>{ const r=await reverseStreet(S.loc); S.loc.label=r.label; S.loc.city=r.city||S.loc.city;
-  if(S.fromPl&&S.fromPl.cur){ S.fromPl.ll={lat:S.loc.lat,lng:S.loc.lng}; S.fromPl.sub=r.label; S.fromPl.label=r.label||S.fromPl.label; S.fromTxt=S.fromPl.label; S.from=S.loc.city||S.from; const a=document.activeElement; if(!(a&&a.matches&&a.matches('input'))) render(); }
+  if(S.fromPl&&S.fromPl.cur){ S.fromPl.ll={lat:S.loc.lat,lng:S.loc.lng}; S.fromPl.sub=r.label; S.fromPl.label=r.label||S.fromPl.label; S.fromTxt=S.fromPl.label; S.from=ABUJA_ONLY?'':(S.loc.city||S.from); const a=document.activeElement; if(!(a&&a.matches&&a.matches('input'))) render(); }
   else if(!S.fromPl&&!S.fromTyped&&S.loc.acc<=150) useCurrent('from',true); },1200); }
 async function firstFix(force){
   const r=await reverseStreet(S.loc); S.loc.label=r.label; S.loc.city=r.city||CITIES[nearestCity(S.loc)].n;
@@ -385,7 +387,7 @@ function useCurrent(field,quiet){
   if(!quiet){ closeSugg(); const a=document.activeElement; if(a&&a.blur&&a.matches&&a.matches('input')) a.blur(); }
   if(!S.loc){ LOC.want=field; startLoc(true); return; }
   const L0={lat:S.loc.lat,lng:S.loc.lng};
-  if(field==='from'){ const nm=S.loc.label||'Your location'; S.fromPl={label:nm,sub:nm,ll:L0,cur:true}; S.fromTxt=nm; S.from=S.loc.city||''; S.selTrip=null; }
+  if(field==='from'){ const nm=S.loc.label||'Your location'; S.fromPl={label:nm,sub:nm,ll:L0,cur:true}; S.fromTxt=nm; S.from=ABUJA_ONLY?'':(S.loc.city||''); S.selTrip=null; }
   if(field==='pfa'){ S.post.fromA=(S.loc.label||'').split(',')[0]||'Current location'; S.post.fromLL=L0; const k=cityKey(S.loc.city); if(k) S.post.fromC=k; S.post.touched=true; }
   closeSugg(); const a=document.activeElement; if(!(a&&a.matches&&a.matches('input'))||!quiet) render();
   if(!quiet) toast(S.loc.acc>1500?'Your location is approximate (about '+Math.round(S.loc.acc/1000)+' km). Type your area for a precise pickup.':'Pickup set to '+(S.loc.label||'your location'));
@@ -411,9 +413,9 @@ document.addEventListener('pointerdown',e=>{ if(SG.field&&!e.target.closest('.su
 function useTyped(field){
   const el=document.getElementById({from:'qf',to:'qt',pfa:'pfa',pta:'pta'}[field]); const q=((el&&el.value)||SG.q||'').trim(); if(!q) return;
   closeSugg(); if(el&&el.blur) el.blur();
-  const city=cityKey(q)?CITIES[cityKey(q)].n:'Abuja', full=q+(cityKey(q)||/abuja|fct/i.test(q)?'':', Abuja');
-  if(field==='from'){ S.fromPl={label:q,sub:'Google Maps',g:full}; S.fromTxt=q; S.from=city; S.fromTyped=true; }
-  if(field==='to'){ S.toPl={label:q,sub:'Google Maps',g:full}; S.toTxt=q; S.to=city; }
+  const city='Abuja', full=q+(/abuja|fct/i.test(q)?'':', Abuja');
+  if(field==='from'){ S.fromPl={label:q,sub:'Google Maps',g:full}; S.fromTxt=q; S.from=q; S.fromTyped=true; }
+  if(field==='to'){ S.toPl={label:q,sub:'Google Maps',g:full}; S.toTxt=q; S.to=q; }
   if(field==='pfa'){ S.post.fromA=q; S.post.fromLL=null; S.post.touched=true; }
   if(field==='pta'){ S.post.toA=q; S.post.toLL=null; }
   S.selTrip=null; render();
@@ -446,8 +448,8 @@ function closePicker(){ const el=$('#picker'); if(el) el.remove(); PK=null; }
 function confirmPicker(){
   if(!PK) return; const f=PK.field, ll=PK.ll, r=PK.addr||{label:'Pinned spot',city:CITIES[nearestCity(ll)].n}, land=$('#pkland').value.trim();
   const lab=land||r.label, sub=land?r.label:'Pinned on map', city=r.city||CITIES[nearestCity(ll)].n;
-  if(f==='from'){ S.fromPl={label:lab,sub,ll}; S.fromTxt=lab; S.from=city; S.fromTyped=true; }
-  if(f==='to'){ S.toPl={label:lab,sub,ll}; S.toTxt=lab; S.to=city; }
+  if(f==='from'){ S.fromPl={label:lab,sub,ll}; S.fromTxt=lab; S.from=ABUJA_ONLY?lab:city; S.fromTyped=true; }
+  if(f==='to'){ S.toPl={label:lab,sub,ll}; S.toTxt=lab; S.to=ABUJA_ONLY?lab:city; }
   if(f==='pfa'||f==='pta'){ const k=cityKey(city), p=S.post; p.touched=true; if(f==='pfa'){ p.fromA=lab; p.fromLL=ll; if(k) p.fromC=k; } else { p.toA=lab; p.toLL=ll; if(k) p.toC=k; } }
   S.selTrip=null; closePicker(); render(); toast('Location set: '+lab);
 }
@@ -455,8 +457,8 @@ async function pickSugg(i){
   const f=SG.field, it=SG.list[i]; if(!it) return; closeSugg(); const a=document.activeElement; if(a&&a.blur) a.blur();
   const s=await resolveSugg(it); if(!s) return;
   const city=s.city||'', lab=s.label;
-  if(f==='from'){ S.fromPl={label:lab,sub:s.sub,ll:s.ll}; S.fromTxt=lab; S.from=city||lab; S.fromTyped=true; }
-  if(f==='to'){ S.toPl={label:lab,sub:s.sub,ll:s.ll}; S.toTxt=lab; S.to=city||lab; }
+  if(f==='from'){ S.fromPl={label:lab,sub:s.sub,ll:s.ll}; S.fromTxt=lab; S.from=ABUJA_ONLY?lab:(city||lab); S.fromTyped=true; }
+  if(f==='to'){ S.toPl={label:lab,sub:s.sub,ll:s.ll}; S.toTxt=lab; S.to=ABUJA_ONLY?lab:(city||lab); }
   if(f==='pfa'||f==='pta'){ const k=cityKey(city), p=S.post; p.touched=true;
     if(f==='pfa'){ p.fromA=lab===city?'':lab; p.fromLL=s.ll; if(k) p.fromC=k; } else { p.toA=lab===city?'':lab; p.toLL=s.ll; if(k) p.toC=k; } }
   S.selTrip=null; render();
@@ -464,7 +466,18 @@ async function pickSugg(i){
 
 /* ---------- navigation ---------- */
 const HOME = {passenger:'find', driver:'dTrips'};
-function go(v, extra){ if(S.view==='track' && v!=='track') stopTrack(); S.view=v; S.sheet=null; Object.assign(S, extra||{}); render(); $('#screen').scrollTop=0; }
+const ROOTS=['find','trips','dTrips','post','profile'];
+let HIST=[], PUSHED=0;
+function go(v, extra, fromBack){
+  if(S.view==='track' && v!=='track') stopTrack();
+  if(!fromBack){ if(ROOTS.includes(v)) HIST=[]; else if(S.view!==v){ HIST.push({view:S.view,sel:S.sel,offerId:S.offerId,reqId:S.reqId}); try{ history.pushState({rl:1},''); PUSHED++; }catch(e){} } }
+  S.view=v; S.sheet=null; Object.assign(S, extra||{}); render(); $('#screen').scrollTop=0; }
+/* Back: return to the screen you came from */
+function goBack(fallback){ if($('#picker')){ closePicker(); return; } if(S.sheet){ S.sheet=null; render(); return; }
+  const p=HIST.pop(); if(p){ const {view,...rest}=p; go(view,rest,true); } else go(fallback||HOME[S.mode],null,true); }
+addEventListener('popstate',()=>{ PUSHED=Math.max(0,PUSHED-1); if(S.onbOn){ prevStep(); return; } goBack(); });
+function backTap(fallback){ if(PUSHED>0&&HIST.length){ history.back(); } else goBack(fallback); }
+const backBtn = (fallback,label) => `<button class="back" onclick="backTap('${fallback}')">${ic('back',16)} ${label||'Back'}</button>`;
 function setMode(m){
   if(m===S.mode) return;
   if(m==='driver' && !S.user.driverVerified){ startOnb('driver'); return; }
@@ -594,11 +607,11 @@ const QUICK=['today','neg','ac','women'];
 const SORTS={best:'Best match',cheap:'Cheapest',early:'Earliest',rating:'Top rated'};
 const dayRank=t=>({Today:0,Tomorrow:1}[dayOf(t)]??2);
 function findTrips(){
-  const pool=S.trips.filter(t=>!t.mine&&!t.past), known=q=>!q||pool.some(t=>(t.from+' '+t.to).toLowerCase().includes(q));
-  let f=S.from.trim().toLowerCase(), d=S.to.trim().toLowerCase();
-  if(!known(f)) f=(S.fromPl&&S.fromPl.ll?CITIES[nearestCity(S.fromPl.ll)].n:(S.fromPl&&S.fromPl.g&&cityKey(S.from)?S.from:'abuja')).toLowerCase();
-  if(!known(d)) d=S.toPl&&S.toPl.ll?CITIES[nearestCity(S.toPl.ll)].n.toLowerCase():'';
-  const l=S.trips.filter(t=>!t.mine && !t.past && (!f||t.from.toLowerCase().includes(f)) && (!d||t.to.toLowerCase().includes(d))
+  const inArea=t=>!ABUJA_ONLY||(t.fromC==='abuja'&&t.toC==='abuja'), pool=S.trips.filter(t=>!t.mine&&!t.past&&inArea(t)), known=q=>!q||pool.some(t=>(t.from+' '+t.to).toLowerCase().includes(q));
+  let f=S.from.trim().toLowerCase(), d=S.to.trim().toLowerCase(); if(ABUJA_ONLY){ if(/^(abuja|fct)$/.test(f)) f=''; if(/^(abuja|fct)$/.test(d)) d=''; }
+  if(!known(f)) f=ABUJA_ONLY?'':(S.fromPl&&S.fromPl.ll?CITIES[nearestCity(S.fromPl.ll)].n:'abuja').toLowerCase();
+  if(!known(d)) d=ABUJA_ONLY?'':(S.toPl&&S.toPl.ll?CITIES[nearestCity(S.toPl.ll)].n.toLowerCase():'');
+  const l=S.trips.filter(t=>!t.mine && !t.past && inArea(t) && (!f||t.from.toLowerCase().includes(f)) && (!d||t.to.toLowerCase().includes(d))
     && (!S.maxPrice||t.price<=S.maxPrice) && FGROUPS.every(([,ks])=>{ const on=ks.filter(k=>S.filters.includes(k)); return !on.length||on.some(k=>FILT[k].fn(t)); }));
   const by={best:(a,b)=>(!!b.boosted-!!a.boosted)||(dayRank(a)-dayRank(b)), cheap:(a,b)=>a.price-b.price, early:(a,b)=>(dayRank(a)-dayRank(b))||(hourOf(a)-hourOf(b)), rating:(a,b)=>b.rating-a.rating}[S.sort];
   return l.sort(by);
@@ -606,7 +619,7 @@ function findTrips(){
 const nFilters=()=>S.filters.length+(S.maxPrice?1:0);
 const tripList = () => { const l=findTrips(); return l.length ? l.map(tripCard).join('') : `<div class="empty"><b>No trips match</b>Try another route or clear a filter.</div>${nFilters()?'<button class="btn ghost" onclick="clearFilters()">Clear filters</button>':''}`; };
 const findSpec = () => { const t=S.selTrip&&trip(S.selTrip); if(t) return tripPlaces(t);
-  const inAbj=t=>t?t+(cityKey(t)||/abuja|fct/i.test(t)?'':', Abuja')+', Nigeria':''; return {a:S.fromPl?(S.fromPl.g?S.fromPl.g+', Nigeria':''):inAbj(S.from.trim()),aLL:S.fromPl&&S.fromPl.ll,b:S.toPl?(S.toPl.g?S.toPl.g+', Nigeria':''):inAbj(S.to.trim()),bLL:S.toPl&&S.toPl.ll,ac:cityKey(S.from),bc:cityKey(S.to)}; };
+  const inAbj=t=>t?t+(/abuja|fct/i.test(t)||(!ABUJA_ONLY&&cityKey(t))?'':', Abuja')+', Nigeria':''; return {a:S.fromPl?(S.fromPl.g?S.fromPl.g+', Nigeria':''):inAbj(S.from.trim()),aLL:S.fromPl&&S.fromPl.ll,b:S.toPl?(S.toPl.g?S.toPl.g+', Nigeria':''):inAbj(S.to.trim()),bLL:S.toPl&&S.toPl.ll,ac:cityKey(S.from),bc:cityKey(S.to)}; };
 const findMap = () => gmap(findSpec(), S.selTrip?'Selected trip':((S.fromTxt||S.from)&&(S.toTxt||S.to)?(S.fromTxt||S.from)+' to '+(S.toTxt||S.to):''));
 let fmT; function updFind(){ const l=$('#list'); if(l) l.innerHTML=tripList(); const c=$('#count'); if(c) c.textContent=countText();
   clearTimeout(fmT); fmT=setTimeout(()=>{ const w=$('#mapwrap'); if(w){ w.innerHTML=findMap(); syncMaps(); } },MAPMODE==='svg'?0:700); }
@@ -646,7 +659,7 @@ function vDetail(){
     act=`<div class="card row between"><div><div class="name">Your offer ${naira(ex.amount)}</div><div class="meta">${ex.status==='countered'?'Driver countered '+naira(ex.counter):'Sent to the driver'}</div></div><span class="chip ${cls}">${lab}</span></div>
     <button class="btn" onclick="go('thread',{offerId:${ex.id}})">${ex.status==='countered'?'Reply to counter':ex.status==='accepted'?'Pay to confirm':'View offer'}</button>`; }
   else act=`<div class="dock">${t.neg?`<button class="btn ghost" ${t.seats?'':'disabled'} onclick="S.sheet={type:'offer',tripId:${t.id}};render()">Make offer</button>`:''}<button class="btn" ${t.seats?'':'disabled'} onclick="sendOffer(${t.id},${t.price})">Request seat · ${naira(t.price)}</button></div>`;
-  return `<button class="back" onclick="go('${S.mode==='driver'?'dTrips':'find'}')">${ic('back',16)} Back</button>
+  return `${backBtn(S.mode==='driver'?'dTrips':'find')}
   ${gmap(tripPlaces(t),'≈ '+Math.round(tKm(t))+' km · '+dur(tMins(t)))}<div>
   <div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="row"><div class="avatar">${initials(t.driver)}</div><div><div class="name">${esc(t.driver)}</div><div class="meta">★ ${t.rating} · ${esc(t.car)}</div></div></div><div class="price">${naira(t.price)}<small> /seat</small></div></div>
     <div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
@@ -678,13 +691,13 @@ function vThread(){
   if(o.status==='countered') act=`<div class="btns"><button class="btn" onclick="acceptCounter(${o.id})">Accept ${naira(o.counter)}</button>${o.round<3?`<button class="btn ghost" onclick="S.sheet={type:'offer',tripId:${t.id},again:${o.id}};render()">Counter</button>`:''}</div>
     <div class="btns"><button class="btn bad" onclick="declineOffer(${o.id})">Decline</button></div><p class="hint" style="margin-top:8px">Round ${o.round} of 3${o.round>=3?'. This is the driver’s final price.':'.'}</p>`;
   if(o.status==='accepted') act=`<p class="hint" style="margin-top:8px">Your money is held safely and released to the driver after the trip. Free cancellation until 2 hours before departure.</p><div class="dock"><button class="btn" onclick="pay(${o.id})">Pay ${naira(o.final)} to confirm</button></div>`;
-  return `<button class="back" onclick="go('trips')">${ic('back',16)} Inbox</button>
+  return `${backBtn('trips')}
   <div class="card"><div class="row between"><div class="name">${esc(t.driver)}</div><span class="chip ${cls}">${lab}</span></div><div class="meta" style="margin-top:4px">${esc(t.from)} → ${esc(t.to)}</div><div class="meta">${esc(t.when)} · Listed ${naira(t.price)}</div></div>
   <div class="msgs">${o.msgs.map(m=>`<div class="bubble ${m.w}">${esc(m.t)}</div>`).join('')}</div>${act}`;
 }
 function vConfirmed(){
   const o=offer(S.offerId), t=trip(o.tripId), b=S.bookings.find(x=>x.id===S.lastBooking)||S.bookings[0];
-  return `<div class="empty" style="padding-bottom:0"><span class="chip good">Seat confirmed</span><h2 style="margin-top:10px">You’re on the trip</h2></div>
+  return `${backBtn('trips')}<div class="empty" style="padding-bottom:0"><span class="chip good">Seat confirmed</span><h2 style="margin-top:10px">You’re on the trip</h2></div>
   <div class="card"><div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div><div class="row between"><span class="meta">${esc(t.driver)} · ${esc(t.car)}</span><b>${naira(o.final)}</b></div></div>
   <div class="label" style="text-align:center">Show this code to the driver at pickup</div><div class="code">${b.code.split('').join(' ')}</div>
   <div class="btns"><button class="btn ghost" onclick="go('trips')">My trips</button><button class="btn" onclick="startTrack(${t.id},'passenger',${b.id})">Track trip</button></div>`;
@@ -714,7 +727,7 @@ const trackMap = () => { const T=S.track,t=trip(T.tripId); return gmap(Object.as
 function vTrack(){
   const T=S.track; if(!T) return vTrips(); const t=trip(T.tripId), drv=T.role==='driver';
   const riders=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted');
-  return `<button class="back" onclick="go('${drv?'dTrips':'trips'}')">${ic('back',16)} ${drv?'My trips':'Trips'}</button>
+  return `${backBtn(drv?'dTrips':'trips')}
   <div id="mapwrap">${trackMap()}</div><div>
   <div class="card"><div class="row between"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><span class="chip ${T.arrived?'':'good'}" id="eta">${etaText()}</span></div>
     <div class="prog"><i id="prog" style="width:${T.t*100}%"></i></div>
@@ -744,7 +757,7 @@ function incomingAct(id,a){ const i=S.incoming.find(x=>x.id===id), t=trip(i.trip
 function vReq(){
   const i=S.incoming.find(x=>x.id===S.reqId); if(!i) return vDTrips(); const t=trip(i.tripId), low=t.neg&&t.floor&&i.amount<t.floor, open=i.status==='new';
   const row=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`;
-  return `<button class="back" onclick="go('dTrips')">${ic('back',16)} My trips</button>
+  return `${backBtn('dTrips')}
   <div class="card center" style="padding:16px"><div class="avatar lg" style="margin:0 auto 8px">${initials(i.name)}</div><div class="name" style="font-size:16px">${esc(i.name)}</div>
     <div class="meta">★ ${i.rating} · ${i.trips} trips · Member since ${esc(i.since)}</div>
     <div class="chips" style="justify-content:center;margin-top:8px"><span class="chip good">${ic('check',12)} Phone verified</span><span class="chip good">${ic('shield',12)} ID verified</span></div></div>
@@ -762,9 +775,11 @@ function vReq(){
 const PER={today:'Today',week:'This week',month:'This month',all:'All time'};
 function heroHTML(){ return `<div class="hero" id="hero"><div class="row between"><div class="meta">Earned · ${PER[S.earnP]}</div><button class="eye" onclick="toggleBal()" aria-label="${S.hideBal?'Show':'Hide'} earnings">${ic(S.hideBal?'eyeoff':'eye',18)}</button></div>
     <div class="big">${S.hideBal?'₦ ••••••':naira(S.earn[S.earnP])}</div>
-    <div class="pers" role="tablist">${Object.entries(PER).map(([k,l])=>`<button role="tab" aria-selected="${S.earnP===k}" onclick="setPer('${k}')">${{today:'Today',week:'Week',month:'Month',all:'All time'}[k]}</button>`).join('')}</div></div>` }
-function setPer(k){ S.earnP=k; const h=$('#hero'); if(h) h.outerHTML=heroHTML(); }
-function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} const h=$('#hero'); if(h&&S.view==='dTrips'&&S.dtab==='up'){ h.outerHTML=heroHTML(); } else render(); }
+    <div class="pers" role="tablist">${Object.entries(PER).map(([k,l])=>`<button role="tab" aria-selected="${S.earnP===k}" data-k="${k}" onclick="setPer('${k}')">${{today:'Today',week:'Week',month:'Month',all:'All time'}[k]}</button>`).join('')}</div></div>` }
+function setPer(k){ S.earnP=k; const h=$('#hero'); if(!h) return;
+  h.querySelector('.meta').textContent='Earned · '+PER[k]; h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[k]);
+  h.querySelectorAll('.pers button').forEach(b=>b.setAttribute('aria-selected',b.dataset.k===k)); }
+function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} const h=$('#hero'); if(h&&S.view==='dTrips'&&S.dtab==='up'){ h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[S.earnP]); const e=h.querySelector('.eye'); e.innerHTML=ic(S.hideBal?'eyeoff':'eye',18); e.setAttribute('aria-label',(S.hideBal?'Show':'Hide')+' earnings'); } else render(); }
 function pastCard(t){
   const pax=t.pax||[], tot=pax.reduce((x,p)=>x+p.amount,0)||t.earned||0;
   return `<details class="card past"><summary><div class="grow"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><div class="meta">${esc(t.when)} · ${pax.length||t.riders||0} passengers</div></div><span class="chip good">${S.hideBal?'₦ •••':naira(t.earned||tot)}</span><span class="chev">${ic('chev',16)}</span></summary>
@@ -801,8 +816,8 @@ function vPost(){
     <div class="two"><div class="field"><label for="pfa">Pickup spot</label><input class="input" id="pfa" enterkeyhint="search" onkeydown="sgKey('pfa',event)" autocomplete="off" value="${esc(p.fromA)}" placeholder="e.g. Kubwa" onfocus="this.select();openSugg('pfa',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.fromA=this.value;S.post.fromLL=null;S.post.touched=true;updPost();openSugg('pfa',this.value)"></div>
     <div class="field"><label for="pta">Drop-off spot</label><input class="input" id="pta" enterkeyhint="search" onkeydown="sgKey('pta',event)" autocomplete="off" value="${esc(p.toA)}" placeholder="e.g. Wuse 2" onfocus="this.select();openSugg('pta',this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.post.toA=this.value;S.post.toLL=null;updPost();openSugg('pta',this.value)"></div></div>
     <div class="sugg" id="sg-post" hidden></div>
-    <details class="more"><summary>Going to another city?</summary><div class="two" style="margin-top:10px"><div class="field"><label for="pfc">From city</label><select class="input" id="pfc" onchange="S.post.fromC=this.value;S.post.fromLL=null;updPost()">${opts(p.fromC)}</select></div>
-    <div class="field"><label for="ptc">To city</label><select class="input" id="ptc" onchange="S.post.toC=this.value;S.post.toLL=null;updPost()">${opts(p.toC)}</select></div></div></details>`;
+    ${ABUJA_ONLY?'':`<details class="more"><summary>Going to another city?</summary><div class="two" style="margin-top:10px"><div class="field"><label for="pfc">From city</label><select class="input" id="pfc" onchange="S.post.fromC=this.value;S.post.fromLL=null;updPost()">${opts(p.fromC)}</select></div>
+    <div class="field"><label for="ptc">To city</label><select class="input" id="ptc" onchange="S.post.toC=this.value;S.post.toLL=null;updPost()">${opts(p.toC)}</select></div></div></details>`}`;
   if(st===2) body=`<div class="field"><span class="label">Day</span><div class="chips">${['Today','Tomorrow','Fri','Sat','Sun'].map(d=>`<button class="chip" aria-pressed="${d===p.day}" onclick="S.post.day='${d}';render()">${d}</button>`).join('')}</div></div>
     <div class="field"><label for="ptm">Leaving at</label><input class="input" id="ptm" type="time" value="${p.time}" onchange="S.post.time=this.value"></div>
     <div class="field"><span class="label">Seats for passengers</span><div class="stepper big"><button aria-label="Fewer seats" onclick="S.post.seats=Math.max(1,S.post.seats-1);render()">−</button><b>${p.seats}</b><button aria-label="More seats" onclick="S.post.seats=Math.min(S.user.veh.seats||4,S.post.seats+1);render()">+</button></div></div>`;

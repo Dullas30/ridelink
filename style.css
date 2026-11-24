@@ -485,3 +485,11 @@ body.bare nav.tabs button.t,body.bare nav.tabs button.fab{font-size:11.5px}
 .card.tap.tc{display:flex;flex-direction:row;align-items:center}
 .sg.gfind .ico{background:#e8f0fe;color:#1a73e8}
 .sg.gfind b{color:#1a73e8}
+/* map sits in its own frame; search card below it, nothing covering Google's controls */
+.searchcard{margin:0 0 10px}
+.gm.emb .mloc{display:none}
+.gm{box-shadow:inset 0 0 0 1px rgba(19,33,28,.08)}
+.gslot{height:220px}
+body.bare .gslot{height:min(240px,32vh)}
+@container app (max-width:340px){.gslot{height:180px}}
+@container app (min-width:600px){.gslot{height:300px}}
