@@ -193,7 +193,8 @@ const mapKey=sp=>(sp.aLL?llKey(sp.aLL):sp.a||'')+'|'+(sp.bLL?llKey(sp.bLL):sp.b|
 function gmap(sp, tag){
   if(MAPMODE==='svg') return mapBox(mapSVG({routes:sp.ac&&sp.bc&&sp.ac!==sp.bc?[{a:sp.ac,b:sp.bc,sel:true}]:[],car:sp.car}), tag||'Map preview');
   const k=mapKey(sp)+(sp.live?'|live':''); MAPS[k]=Object.assign(MAPS[k]||{},sp);
-  return `<div class="map g"><div class="gslot" data-key="${esc(k)}"></div>${tag?`<span class="maptag">${esc(tag)}</span>`:''}</div>`;
+  const showTag=tag&&!(MAPMODE==='embed'&&!sp.live);
+  return `<div class="map g"><div class="gslot" data-key="${esc(k)}"></div>${showTag?`<span class="maptag">${esc(tag)}</span>`:''}</div>`;
 }
 const gmDir=(to,from)=>'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination='+encodeURIComponent(to)+(from?'&origin='+encodeURIComponent(from):'');
 const gmBtn=(label,to,from)=>`<a class="btn ghost gmlink" href="${gmDir(to,from)}" target="_blank" rel="noopener">${ic('pin',16)} ${label}</a>`;
