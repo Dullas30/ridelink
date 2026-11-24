@@ -214,7 +214,7 @@ function gAdapter(el){
     pan:(ll,z)=>{ map.panTo(P(ll)); if(z) map.setZoom(z); }, onDrag:cb=>map.addListener('dragstart',cb), resize:()=>{}, center:()=>{ const c=map.getCenter(); return {lat:c.lat(),lng:c.lng()}; }, onIdle:cb=>map.addListener('idle',cb) };
 }
 function lAdapter(el){
-  const map=L.map(el,{zoomControl:false,attributionControl:true,zoomSnap:.5}).setView([9.07,7.48],11);
+  const map=L.map(el,{zoomControl:false,attributionControl:true,zoomSnap:1}).setView([9.07,7.48],11);
   map.attributionControl.setPrefix(false);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const A=p=>[p.lat,p.lng]; let user,acc,car;
