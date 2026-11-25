@@ -402,7 +402,7 @@ details.past .pd{margin-top:10px;padding-top:4px}
   .logo img.full{height:24px}
 }
 /* real phones: keep clear of the notch and the home bar */
-body.bare header.top{padding-top:calc(env(safe-area-inset-top) + 14px);padding-bottom:12px}
+body.bare header.top{padding-top:calc(env(safe-area-inset-top) + 10px);padding-bottom:12px}
 body.bare nav.tabs{padding-bottom:max(8px,env(safe-area-inset-bottom))}
 body.bare .phone.splash #screen,body.bare .phone.onb #screen{padding-top:env(safe-area-inset-top)}
 /* real phones: steady, no zoom-on-tap, no double bounce, full height even when the address bar moves */
@@ -522,3 +522,15 @@ ol.ios .shr{display:inline-grid;place-items:center;width:24px;height:24px;border
 /* the old welcome-card style must not pad the whole app */
 .phone.splash{padding:0;margin-bottom:0}
 body.bare .phone.splash{border-radius:0}
+
+/* ---------- edge to edge on phones ----------
+   The app draws under the status bar and the camera notch. A strip in the brand colour sits behind the
+   clock and battery (they are white when installed on iPhone), and everything else starts below it. */
+.sbar{display:none}
+body.bare .sbar{display:block;position:absolute;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--brand);z-index:48;pointer-events:none;transition:background .2s}
+body.bare .netbar{top:env(safe-area-inset-top);padding-top:6px}
+body.bare #picker .pk-top{padding-top:calc(env(safe-area-inset-top) + 12px)}
+body.bare .phone,body.bare{background:var(--soft)}
+body.bare header.top{background:var(--surface)}
+html{background:#0a5c4a}
+html:has(body.bare){background:var(--soft)}

@@ -600,9 +600,10 @@ function vOnb(){
 
 /* ---------- shared bits ---------- */
 function rail(items){ return `<div class="rail">${items}</div>`; }
+const routeLabel = t => t.fromC===t.toC ? esc(shortPlace(t.from))+' → '+esc(shortPlace(t.to)) : esc(t.from.split(' · ')[0])+' → '+esc(t.to.split(' · ')[0]);
 const shortPlace = x => { const [c,a]=x.split(' · '); return a||c; };
 function tripCard(t){
-  const sameCity=t.fromC===t.toC, where=sameCity?`${esc(shortPlace(t.from))} → ${esc(shortPlace(t.to))}`:`${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}`;
+  const sameCity=t.fromC===t.toC, where=sameCity?`${esc(shortPlace(t.from))} → ${esc(shortPlace(t.to))}`:`${routeLabel(t)}`;
   return `<button class="card tap tc ${t.boosted?'promoted':''}" onclick="go('detail',{sel:${t.id}})" aria-label="Trip from ${esc(t.from)} to ${esc(t.to)}">
     <div class="avatar">${initials(t.driver)}</div>
     <div class="grow"><div class="name ell">${where}</div><div class="meta">${esc(t.when.replace(' · ',' '))} · ${t.seats} seat${t.seats===1?'':'s'} · ★ ${t.rating}</div></div>
@@ -649,7 +650,7 @@ function bookingCard(b){
   const act = b.status==='upcoming'
     ? `<div class="btns"><button class="btn sm" onclick="startTrack(${t.id},'passenger',${b.id})">${ic('pin',14)} ${t.live?'Open live trip':'Track trip'}</button><button class="btn ghost sm" onclick="toast('Free cancellation until 2 hours before departure')">Cancel</button></div>`
     : (b.rated ? `<div class="meta" style="margin-top:6px">You rated this trip</div>` : `<div class="btns"><button class="btn sm" onclick="S.sheet={type:'rate',bid:${b.id},stars:0};render()">${ic('star',14)} Rate trip</button></div>`);
-  return `<div class="card"><div class="row between"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><span class="chip ${b.status==='upcoming'?'good':''}">${b.status==='upcoming'?(t.live?'On the way':'Confirmed'):'Completed'}</span></div>
+  return `<div class="card"><div class="row between"><div class="name">${routeLabel(t)}</div><span class="chip ${b.status==='upcoming'?'good':''}">${b.status==='upcoming'?(t.live?'On the way':'Confirmed'):'Completed'}</span></div>
     <div class="meta">${esc(t.when)} · ${esc(t.driver)} · ${naira(b.price)}</div>${b.status==='upcoming'?`<div class="meta">Pickup code <b>${b.code}</b></div>`:''}${act}</div>`;
 }
 
@@ -721,7 +722,7 @@ function vTrips(){
   const act=S.ptab==='up', offers=S.offers.filter(o=>!['paid','declined'].includes(o.status));
   const ups=S.bookings.filter(b=>b.status==='upcoming'), past=S.bookings.filter(b=>b.status==='completed');
   const offerCard=o=>{ const t=trip(o.tripId), [lab,cls]=statusChip(o);
-    return `<button class="card tap" onclick="go('thread',{offerId:${o.id}})"><div class="row between"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><span class="chip ${cls}">${lab}</span></div>
+    return `<button class="card tap" onclick="go('thread',{offerId:${o.id}})"><div class="row between"><div class="name">${routeLabel(t)}</div><span class="chip ${cls}">${lab}</span></div>
       <div class="meta">${esc(t.driver)} · ${esc(t.when)}</div><div class="meta">Your offer ${naira(o.amount)}${o.status==='countered'?' · Driver countered '+naira(o.counter):''}</div></button>`; };
   const empty=`<div class="empty"><b>Nothing here yet</b>Find a ride and request a seat.</div><button class="btn" onclick="go('find')">Find a ride</button>`;
   const body=act ? ((offers.length||ups.length) ? `${offers.length?`<h3>Offers</h3>${offers.map(offerCard).join('')}`:''}${ups.length?`<h3>Upcoming</h3>${ups.map(bookingCard).join('')}`:''}` : empty) : (past.length?past.map(bookingCard).join(''):empty);
@@ -744,7 +745,7 @@ function vTrack(){
   const riders=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted');
   return `${backBtn(drv?'dTrips':'trips')}
   <div id="mapwrap">${trackMap()}</div><div>
-  <div class="card"><div class="row between"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><span class="chip ${T.arrived?'':'good'}" id="eta">${etaText()}</span></div>
+  <div class="card"><div class="row between"><div class="name">${routeLabel(t)}</div><span class="chip ${T.arrived?'':'good'}" id="eta">${etaText()}</span></div>
     <div class="prog"><i id="prog" style="width:${T.t*100}%"></i></div>
     <div class="meta">${drv?esc(S.user.veh.make+' '+S.user.veh.model+' · '+S.user.veh.plate):esc(t.driver)+' · '+esc(t.car)}</div></div>
   ${drv?`<h3>Passengers (${riders.length})</h3>${riders.map(r=>`<div class="card row between"><div class="row"><div class="avatar">${initials(r.name)}</div><div class="name">${esc(r.name)}</div></div><button class="chip" aria-pressed="${T.picked.includes(r.id)}" onclick="togglePick(${r.id},this)">${T.picked.includes(r.id)?'Picked up':'Mark picked up'}</button></div>`).join('')||'<div class="note">No passengers booked.</div>'}
@@ -763,7 +764,7 @@ const gap = (amt,price) => amt<price ? naira(price-amt)+' below your price' : 'Y
 function incomingCard(i){
   const t=trip(i.tripId); if(!t) return '';
   const right = i.status==='countered' ? `<span class="chip promo">Countered ${naira(i.counter)}</span>` : `<div class="price">${naira(i.amount)}</div>`;
-  return `<div class="card"><div class="row between"><div class="row"><div class="avatar">${initials(i.name)}</div><div><div class="name">${esc(i.name)}</div><div class="meta">★ ${i.rating||'New'} · ${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div></div></div>${right}</div>
+  return `<div class="card"><div class="row between"><div class="row"><div class="avatar">${initials(i.name)}</div><div><div class="name">${esc(i.name)}</div><div class="meta">★ ${i.rating||'New'} · ${routeLabel(t)}</div></div></div>${right}</div>
     <div class="row between" style="margin-top:8px"><span class="meta">${i.status==='countered'?'Waiting for their reply':gap(i.amount,t.price)}</span><button class="btn sm" onclick="go('req',{reqId:${i.id}})">${ic('eye',14)} View</button></div></div>`;
 }
 function incomingAct(id,a){ const i=S.incoming.find(x=>x.id===id), t=trip(i.tripId);
@@ -797,7 +798,7 @@ function setPer(k){ S.earnP=k; const h=$('#hero'); if(!h) return;
 function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} const h=$('#hero'); if(h&&S.view==='dTrips'&&S.dtab==='up'){ h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[S.earnP]); const e=h.querySelector('.eye'); e.innerHTML=ic(S.hideBal?'eyeoff':'eye',18); e.setAttribute('aria-label',(S.hideBal?'Show':'Hide')+' earnings'); } else render(); }
 function pastCard(t){
   const pax=t.pax||[], tot=pax.reduce((x,p)=>x+p.amount,0)||t.earned||0;
-  return `<details class="card past"><summary><div class="grow"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div><div class="meta">${esc(t.when)} · ${pax.length||t.riders||0} passengers</div></div><span class="chip good">${S.hideBal?'₦ •••':naira(t.earned||tot)}</span><span class="chev">${ic('chev',16)}</span></summary>
+  return `<details class="card past"><summary><div class="grow"><div class="name">${routeLabel(t)}</div><div class="meta">${esc(t.when)} · ${pax.length||t.riders||0} passengers</div></div><span class="chip good">${S.hideBal?'₦ •••':naira(t.earned||tot)}</span><span class="chev">${ic('chev',16)}</span></summary>
     <div class="pd"><div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
     <div class="kv"><span>Distance</span><b>≈ ${Math.round(tKm(t))} km · ${dur(tMins(t))}</b></div>
     <div class="kv"><span>Car</span><b>${esc(t.car)}</b></div><div class="kv"><span>Price per seat</span><b>${naira(t.price)}</b></div>
@@ -808,7 +809,7 @@ function pastCard(t){
 function vDTrips(){
   const up=S.dtab==='up', list=myTrips().filter(t=>up?!t.past:t.past).sort((a,b)=>!!b.live-!!a.live);
   const reqs=S.incoming.filter(i=>(i.status==='new'||i.status==='countered')&&trip(i.tripId)&&!trip(i.tripId).past);
-  const card=t=>`<div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="name">${esc(t.from.split(' · ')[0])} → ${esc(t.to.split(' · ')[0])}</div>${t.live?'<span class="chip good">On the way</span>':t.boosted?'<span class="chip promo">Promoted</span>':`<b class="price">${naira(t.price)}</b>`}</div>
+  const card=t=>`<div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="name">${routeLabel(t)}</div>${t.live?'<span class="chip good">On the way</span>':t.boosted?'<span class="chip promo">Promoted</span>':`<b class="price">${naira(t.price)}</b>`}</div>
       <div class="meta">${esc(t.when)} · ${t.cap-t.seats} of ${t.cap} seats filled</div><div class="prog"><i style="width:${(t.cap-t.seats)/t.cap*100}%"></i></div>
       <div class="btns"><button class="btn sm" onclick="startTrack(${t.id},'driver')">${t.live?'Open live trip':'Start trip'}</button>${t.boosted||t.live?'':`<button class="btn boost sm" onclick="S.sheet={type:'boost',tripId:${t.id}};render()">Boost</button>`}</div></div>`;
   const hero=heroHTML();
@@ -969,7 +970,7 @@ function renderTabs(){
 }
 const VIEWS = {req:vReq,find:vFind,detail:vDetail,thread:vThread,confirmed:vConfirmed,trips:vTrips,track:vTrack,profile:vProfile,post:vPost,dTrips:vDTrips};
 function render(){
-  const ph=$('#phone'); ph.dataset.mode=S.mode; ph.classList.toggle('onb',S.onbOn); ph.classList.toggle('splash',S.onbOn&&S.onb.step==='splash');
+  const ph=$('#phone'); ph.dataset.mode=S.mode; const tc=document.querySelector('meta[name=theme-color]'), tcv=S.mode==='driver'&&!S.onbOn?'#27338f':'#0a5c4a'; if(tc&&tc.content!==tcv) tc.content=tcv; ph.classList.toggle('onb',S.onbOn); ph.classList.toggle('splash',S.onbOn&&S.onb.step==='splash');
   const sc=$('#screen'), top=sc.scrollTop;
   const ae=document.activeElement, fid=ae&&ae.id&&ae.matches('input')?ae.id:null, sel=fid&&ae.type!=='number'?[ae.selectionStart,ae.selectionEnd]:null;
   $('#view').innerHTML=S.onbOn?vOnb():(VIEWS[S.view]||vFind)(); sc.scrollTop=top; syncMaps(); requestAnimationFrame(syncMaps);
