@@ -554,7 +554,7 @@ const tile = (k,title) => { const v=S.onb.docs[k];
 
 function vOnb(){
   const o=S.onb, q=seq(), i=q.indexOf(o.step), kyc=o.step==='kycId'||o.step==='kycCar';
-  if(o.step==='splash') return `<div class="sp"><div class="brand"><img src="assets/logo-white.png" alt="RideLink"></div>
+  if(o.step==='splash') return `<div class="sp"><div class="brand"><img src="assets/logo.png" alt="RideLink"></div>
     <h2>Share the road.<br>Split the cost.</h2><p>Post a trip or join one. Agree the price. Travel with verified people.</p>
     ${ABUJA_ONLY?mapBox(abujaSVG({a:'Kubwa',b:'Central Business District'}),'Kubwa to CBD'):mapBox(mapSVG({routes:[{a:'abuja',b:'kaduna',sel:true}],car:.42}),'Abuja to Kaduna')}
     <div class="spbtn"><button class="btn" onclick="nextStep()">Get started</button>${S.demo?'<button class="skip" onclick="skipOnb()">Skip sign-up for the demo</button>':'<span></span>'}</div></div>`;
@@ -970,7 +970,7 @@ function renderTabs(){
 }
 const VIEWS = {req:vReq,find:vFind,detail:vDetail,thread:vThread,confirmed:vConfirmed,trips:vTrips,track:vTrack,profile:vProfile,post:vPost,dTrips:vDTrips};
 function render(){
-  const ph=$('#phone'); ph.dataset.mode=S.mode; const tc=document.querySelector('meta[name=theme-color]'), tcv=S.mode==='driver'&&!S.onbOn?'#27338f':'#0a5c4a'; if(tc&&tc.content!==tcv) tc.content=tcv; ph.classList.toggle('onb',S.onbOn); ph.classList.toggle('splash',S.onbOn&&S.onb.step==='splash');
+  const ph=$('#phone'); ph.dataset.mode=S.mode;  ph.classList.toggle('onb',S.onbOn); ph.classList.toggle('splash',S.onbOn&&S.onb.step==='splash');
   const sc=$('#screen'), top=sc.scrollTop;
   const ae=document.activeElement, fid=ae&&ae.id&&ae.matches('input')?ae.id:null, sel=fid&&ae.type!=='number'?[ae.selectionStart,ae.selectionEnd]:null;
   $('#view').innerHTML=S.onbOn?vOnb():(VIEWS[S.view]||vFind)(); sc.scrollTop=top; syncMaps(); requestAnimationFrame(syncMaps);
