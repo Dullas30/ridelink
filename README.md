@@ -10,6 +10,8 @@ Plain HTML, CSS and JavaScript. No build step.
 - index.html  markup and the device-preview frame
 - config.js   settings (Google Maps key)
 - assets/     logo files (transparent PNG; white versions for green backgrounds)
+- sw.js       service worker (offline + install)
+- manifest.webmanifest  app details for installing
 - style.css   styles (container queries handle folded, phone and unfolded widths)
 - app.js      state, screens, mock negotiation, sign-up and driver checks, maps
 
@@ -25,6 +27,15 @@ Fake data lives at the top of app.js (S.trips, S.offers, S.bookings, S.incoming,
 - Optional: put a Google key in config.js to switch everything (search, live map) to the Google Maps JavaScript API.
   Enable Maps JavaScript API, Routes API, Places API (New) and Geocoding API. Google needs a billing account for this.
 - Where a page may not load maps (for example the shared preview link), the app falls back to a drawn map.
+
+## Installable app (PWA)
+- manifest.webmanifest: name, colours, icons, home-screen shortcuts (Find a ride, Post a trip, My trips) and install screenshots.
+- sw.js: the service worker. Saves the app on the phone so it opens fast and works offline. Pages and code are
+  fetched fresh when online (so updates arrive) and the saved copy is used when offline. Maps and search are always live.
+- offline.html: shown if the app was never opened before and there is no connection.
+- In the app: an "Install RideLink" banner on Find and in Profile (Android/Chrome shows the install prompt;
+  iPhone shows Add to Home Screen steps), a "New version ready · Refresh" bar after updates, and an offline notice.
+- When you change what is saved for offline use, bump VERSION in sw.js.
 
 ## Screens
 On a real phone or foldable the device frame and switcher hide and the app fills the screen.

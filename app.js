@@ -171,6 +171,21 @@ function mapSVG(o){
     g+=`${selR&&selR.a===key?`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" class="pulse"/>`:''}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${selected?6:5}" fill="${isOrigin?'#fff':'var(--brand)'}" stroke="var(--brand)" stroke-width="3"/><text x="${x.toFixed(1)}" y="${(y-11).toFixed(1)}" text-anchor="middle" class="ml b">${CITIES[key].n}</text>`; });
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Route map">${g}${carG}</svg>`;
 }
+/* drawn map of Abuja districts, used where real map tiles cannot load */
+function abujaSVG(sp){
+  const W=360, H=isWide()?400:200, la0=8.96, la1=9.17, lo0=7.30, lo1=7.60;
+  const P=(la,lo)=>[18+(lo-lo0)/(lo1-lo0)*(W-36), 14+(la1-la)/(la1-la0)*(H-28)];
+  const named=n=>{ const ll=areaLL(n); return ll?P(ll.lat,ll.lng):null; };
+  const A=sp.aLL?P(sp.aLL.lat,sp.aLL.lng):named(sp.a), B=sp.bLL?P(sp.bLL.lat,sp.bLL.lng):named(sp.b);
+  let g=`<path d="M${P(9.155,7.322)} Q${P(9.11,7.42)} ${P(9.06,7.47)} T${P(9.0,7.57)}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M${P(8.977,7.30)} Q${P(9.03,7.42)} ${P(9.054,7.489)}" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>`;
+  Object.entries(AREAS).forEach(([n,[la,lo]])=>{ if(['Wuse','Area 1','Banex','Berger','Airport','Life Camp','Dutse','Karu','Apo','Utako'].includes(n)) return; const [x,y]=P(la,lo);
+    g+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="#b9c5c0"/><text x="${(x+5).toFixed(1)}" y="${(y+3).toFixed(1)}" class="ml">${n==='Central Business District'?'CBD':n}</text>`; });
+  if(A&&B){ const [ax,ay]=A,[bx,by]=B, mx=(ax+bx)/2, my=(ay+by)/2-18; const d=`M${ax.toFixed(1)} ${ay.toFixed(1)}Q${mx.toFixed(1)} ${my.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
+    g+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><path d="${d}" fill="none" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/><circle cx="${ax}" cy="${ay}" r="6" fill="#fff" stroke="var(--brand)" stroke-width="3"/><circle cx="${bx}" cy="${by}" r="6" fill="var(--brand)" stroke="var(--brand)" stroke-width="3"/>`; }
+  else if(A||B){ const [x,y]=A||B; g+=`<circle cx="${x}" cy="${y}" r="8" class="pulse"/><circle cx="${x}" cy="${y}" r="6" fill="var(--brand)" stroke="#fff" stroke-width="2"/>`; }
+  if(S.loc&&S.loc.lat>la0&&S.loc.lat<la1&&S.loc.lng>lo0&&S.loc.lng<lo1){ const [x,y]=P(S.loc.lat,S.loc.lng); g+=`<circle cx="${x}" cy="${y}" r="6" fill="#2f80ed" stroke="#fff" stroke-width="2.5"/>`; }
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Map of Abuja">${g}</svg>`;
+}
 const mapBox = (inner, tag='Map preview') => `<div class="map"><div id="mapbox">${inner}</div><span class="maptag">${tag}</span></div>`;
 
 /* ---------- live map ----------
@@ -194,7 +209,7 @@ const tripPlaces=t=>{ const [c1,a1]=t.from.split(' · '), [c2,a2]=t.to.split(' �
 const llKey=ll=>ll?ll.lat.toFixed(4)+','+ll.lng.toFixed(4):'';
 const mapKey=sp=>(sp.aLL?llKey(sp.aLL):sp.a||'')+'|'+(sp.bLL?llKey(sp.bLL):sp.b||'');
 function gmap(sp, tag){
-  if(MAPMODE==='svg') return mapBox(mapSVG({routes:sp.ac&&sp.bc&&sp.ac!==sp.bc?[{a:sp.ac,b:sp.bc,sel:true}]:[],car:sp.car}), tag||'Map preview');
+  if(MAPMODE==='svg') return mapBox(ABUJA_ONLY?abujaSVG(sp):mapSVG({routes:sp.ac&&sp.bc&&sp.ac!==sp.bc?[{a:sp.ac,b:sp.bc,sel:true}]:[],car:sp.car}), tag||'Abuja');
   const k=mapKey(sp)+(sp.live?'|live':''); MAPS[k]=Object.assign(MAPS[k]||{},sp);
   const showTag=tag&&!(MAPMODE==='embed'&&!sp.live);
   return `<div class="map g"><div class="gslot" data-key="${esc(k)}"></div>${showTag?`<span class="maptag">${esc(tag)}</span>`:''}</div>`;
@@ -541,7 +556,7 @@ function vOnb(){
   const o=S.onb, q=seq(), i=q.indexOf(o.step), kyc=o.step==='kycId'||o.step==='kycCar';
   if(o.step==='splash') return `<div class="sp"><div class="brand"><img src="assets/logo-white.png" alt="RideLink"></div>
     <h2>Share the road.<br>Split the cost.</h2><p>Post a trip or join one. Agree the price. Travel with verified people.</p>
-    ${mapBox(mapSVG({routes:[{a:'abuja',b:'kaduna',sel:true}],car:.42}),'Abuja to Kaduna')}
+    ${ABUJA_ONLY?mapBox(abujaSVG({a:'Kubwa',b:'Central Business District'}),'Kubwa to CBD'):mapBox(mapSVG({routes:[{a:'abuja',b:'kaduna',sel:true}],car:.42}),'Abuja to Kaduna')}
     <div class="spbtn"><button class="btn" onclick="nextStep()">Get started</button>${S.demo?'<button class="skip" onclick="skipOnb()">Skip sign-up for the demo</button>':'<span></span>'}</div></div>`;
   const bar = NOBAR.includes(o.step) ? '' :
     `<div class="top"><button class="back" style="margin:0" onclick="prevStep()" aria-label="Back">${ic('back',18)}</button><div class="steps">${q.filter(s=>!NOBAR.includes(s)).map(s=>`<i class="${q.indexOf(s)<=i?'on':''}"></i>`).join('')}</div><button class="skip" onclick="${kyc?'asPassenger()':'skipOnb()'}">${kyc?'Later':'Skip'}</button></div>`;
@@ -640,7 +655,7 @@ function bookingCard(b){
 
 function vFind(){
   const n=nFilters(), cur=S.fromPl&&S.fromPl.cur;
-  return `<div id="mapwrap">${findMap()}</div>
+  return `${installBanner()}<div id="mapwrap">${findMap()}</div>
   <div class="searchcard">
     <div class="sline"><span class="sdot from"></span><input class="sinput small" id="qf" enterkeyhint="search" onkeydown="sgKey('from',event)" placeholder="Pickup" autocomplete="off" value="${esc(S.fromTxt||S.from)}" onfocus="this.select();openSugg('from',S.fromPl?'':this.value)" onblur="setTimeout(blurSugg,150)" oninput="S.from=S.fromTxt=this.value;S.fromPl=null;S.fromTyped=true;S.selTrip=null;updFind();openSugg('from',this.value)" aria-label="Pickup"><button class="loc" onclick="locateMe()" aria-label="Use my current location">${ic('locate',16)}</button></div>
     ${cur?`<div class="ssub">${ic('locate',11)} Your location${S.loc&&S.loc.acc>300?' · approximate, tap to change':''}</div>`:''}
@@ -856,7 +871,7 @@ function vProfile(){
   const em=u.em&&u.em.name?esc(u.em.name)+' · '+esc(u.em.phone):'Add someone we alert in an emergency';
   const safety=`<h3>Safety</h3><div class="card">${lrow('shield','Emergency contact',em,"S.sheet={type:'em'};render()")}
     ${lrow('share','Share every trip automatically','Your emergency contact gets a live link',null,sw(u.autoShare,'S.user.autoShare=!S.user.autoShare;render()','Share trips automatically'))}</div>`;
-  const support=`<h3>Help</h3><div class="card">${lrow('help','Help and support','Chat with us, report a problem',soon('Support'))}${lrow('doc','Terms and privacy','How we use and protect your data',soon('Terms and privacy'))}${lrow('star','Demo shortcuts','Skip buttons and demo codes for presentations',null,sw(S.demo,'S.demo=!S.demo;render()','Demo shortcuts'))}</div>
+  const support=`${canInstall()?`<h3>App</h3><div class="card">${lrow('phone','Install RideLink','Add it to your home screen. Opens like an app and works on weak network',"installApp()")}</div>`:PWA.standalone?`<h3>App</h3><div class="card">${lrow('check','RideLink is installed','You are using the app version',null,'')}</div>`:''}<h3>Help</h3><div class="card">${lrow('help','Help and support','Chat with us, report a problem',soon('Support'))}${lrow('doc','Terms and privacy','How we use and protect your data',soon('Terms and privacy'))}${lrow('star','Demo shortcuts','Skip buttons and demo codes for presentations',null,sw(S.demo,'S.demo=!S.demo;render()','Demo shortcuts'))}</div>
     <div class="card">${lrow('logout','Sign out','',"startOnb()",'')}</div><p class="hint center" style="margin:6px 0 4px">RideLink 1.0 · Prototype</p>`;
   if(!d){
     return head+`<h3>Account</h3><div class="card">${lrow('edit','Personal details',esc(u.phone)+(u.email?' · '+esc(u.email):''),"S.sheet={type:'me'};render()")}
@@ -914,6 +929,9 @@ function sheetHTML(){
       <div class="field"><label for="en">Name</label><input class="input" id="en" value="${esc(e.name)}"></div>
       <div class="field"><label for="ep">Phone</label><input class="input" id="ep" type="tel" value="${esc(e.phone)}"></div>
       <div class="btns"><button class="btn ghost" onclick="S.sheet=null;render()">Cancel</button><button class="btn" onclick="saveEm()">Save</button></div></div>`; }
+  if(s.type==='iosInstall') return `<div class="sheet" role="dialog" aria-label="Install on iPhone"><h2>Install RideLink on iPhone</h2><p class="sub">Three quick steps in Safari:</p>
+      <ol class="ios"><li><span class="n">1</span>Tap the <b>Share</b> button <span class="shr">${ic('upload',16)}</span> at the bottom of Safari</li><li><span class="n">2</span>Scroll and tap <b>Add to Home Screen</b></li><li><span class="n">3</span>Tap <b>Add</b>. RideLink appears on your home screen with its logo</li></ol>
+      <button class="btn" style="margin-top:14px" onclick="S.sheet=null;render()">Got it</button></div>`;
   if(s.type==='sos') return `<div class="sheet" role="dialog" aria-label="Emergency"><h2>Emergency help</h2><p class="sub">Demo only. In the live app these actions work.</p>
       <div class="btns" style="flex-direction:column"><button class="btn bad" onclick="S.sheet=null;toast('Demo: this would call 112')">Call 112</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: your emergency contact would be alerted')">Alert my emergency contact</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: live location would be shared')">Share live location</button><button class="btn ghost" onclick="S.sheet=null;render()">Close</button></div></div>`;
   return '';
@@ -989,3 +1007,37 @@ setDevice('iphone');
 (()=>{ const b=document.getElementById('boot'); if(!b) return; const t0=performance.now();
   const hide=()=>setTimeout(()=>{ b.classList.add('out'); setTimeout(()=>b.remove(),450); },Math.max(0,1400-(performance.now()-t0)));
   document.readyState==='complete'?hide():addEventListener('load',hide,{once:true}); setTimeout(hide,4000); })();
+
+/* ---------- installable app (PWA) ---------- */
+const PWA={prompt:null,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,
+  ios:/iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent), reg:null};
+let pwaHidden=false; try{ pwaHidden=localStorage.getItem('rl_noInstall')==='1'; }catch(e){}
+const canInstall=()=>!PWA.standalone&&(PWA.prompt||PWA.ios);
+addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); PWA.prompt=e; render(); });
+addEventListener('appinstalled',()=>{ PWA.prompt=null; PWA.standalone=true; render(); toast('RideLink is installed. Open it from your home screen.'); });
+async function installApp(){
+  if(PWA.prompt){ PWA.prompt.prompt(); const r=await PWA.prompt.userChoice; PWA.prompt=null; render(); if(r.outcome!=='accepted') toast('You can install RideLink any time from Profile.'); return; }
+  S.sheet={type:'iosInstall'}; render();
+}
+function hideInstall(){ pwaHidden=true; try{ localStorage.setItem('rl_noInstall','1'); }catch(e){} render(); }
+const installBanner=()=>canInstall()&&!pwaHidden?`<div class="instbar"><img src="assets/icons/icon-192.png" alt=""><div class="grow"><b>Install RideLink</b><span>Opens like an app, works on weak network</span></div><button class="btn sm" onclick="installApp()">Install</button><button class="x" onclick="hideInstall()" aria-label="Not now">×</button></div>`:'';
+/* service worker: save the app on the phone; tell the person when a new version is ready */
+if('serviceWorker' in navigator && (location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname))){
+  addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').then(reg=>{ PWA.reg=reg;
+      const ready=w=>{ if(w&&navigator.serviceWorker.controller){ PWA.waiting=w; showUpdate(); } };
+      ready(reg.waiting); reg.addEventListener('updatefound',()=>{ const w=reg.installing; w&&w.addEventListener('statechange',()=>{ if(w.state==='installed') ready(w); }); });
+      setInterval(()=>reg.update().catch(()=>{}),30*60*1000);
+    }).catch(()=>{}); });
+  let reloaded=false; navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(PWA.updating&&!reloaded){ reloaded=true; location.reload(); } });
+}
+function showUpdate(){ if($('#upd')) return; const b=document.createElement('div'); b.id='upd'; b.className='updbar';
+  b.innerHTML='<span>A new version of RideLink is ready</span><button onclick="applyUpdate()">Refresh</button>'; $('#phone').appendChild(b); }
+function applyUpdate(){ PWA.updating=true; if(PWA.waiting) PWA.waiting.postMessage('skipWaiting'); else location.reload(); }
+/* offline notice */
+function netBar(){ let b=$('#netbar'); if(navigator.onLine){ if(b) b.remove(); return; }
+  if(!b){ b=document.createElement('div'); b.id='netbar'; b.className='netbar'; b.textContent='You’re offline. Some things may not load until you’re back online.'; $('#phone').appendChild(b); } }
+addEventListener('online',()=>{ netBar(); toast('Back online'); }); addEventListener('offline',netBar); netBar();
+/* home-screen shortcuts: ?go=find | post | trips */
+(()=>{ const g=new URLSearchParams(location.search).get('go'); if(!g) return; S.onbOn=false;
+  if(g==='post'){ S.mode=S.user.driverVerified?'driver':'passenger'; go(S.mode==='driver'?'post':'find'); }
+  else if(g==='trips') go('trips'); else go('find'); })();

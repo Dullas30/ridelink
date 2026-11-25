@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RideLink · Offline</title><meta name="theme-color" content="#ffffff">
+<style>
+:root{--brand:#0a5c4a}*{box-sizing:border-box;margin:0}
+body{min-height:100dvh;display:grid;place-items:center;font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#13211c;background:radial-gradient(circle at 50% 40%,#e6f4e8,#fff 65%);padding:24px;text-align:center}
+img{width:min(240px,70vw);height:auto;margin-bottom:28px}
+h1{font-size:22px;margin-bottom:6px}p{color:#5b6a64;max-width:300px;margin:0 auto 22px}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:13px 22px;background:var(--brand);color:#fff;min-width:200px}
+</style></head>
+<body><main><img src="assets/logo.png" alt="RideLink"><h1>You're offline</h1><p>Check your data or Wi-Fi. Your trips will load again as soon as you're back online.</p>
+<button onclick="location.reload()">Try again</button></main>
+<script>addEventListener('online',()=>location.reload())</script></body></html>

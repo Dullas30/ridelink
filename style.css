@@ -505,3 +505,20 @@ body.bare .card{padding:12px;margin-bottom:8px}
 .tcr{gap:3px}
 .card.promoted{box-shadow:0 0 0 1.5px var(--boost),0 2px 8px rgba(240,165,0,.10)}
 body.bare .card.promoted{border:0}
+
+/* ---------- installable app ---------- */
+.instbar{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:9px 10px;margin-bottom:10px;box-shadow:0 1px 2px rgba(19,33,28,.05),0 4px 14px rgba(19,33,28,.05)}
+.instbar img{width:34px;height:34px;border-radius:9px;flex:none}
+.instbar b{display:block;font-size:13px}.instbar span{display:block;font-size:11px;color:var(--muted)}
+.instbar .x{width:28px;height:28px;border-radius:50%;font-size:18px;color:var(--muted);flex:none}
+.updbar{position:absolute;left:12px;right:12px;bottom:96px;z-index:46;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);color:#fff;border-radius:14px;padding:10px 12px 10px 14px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.updbar button{background:#fff;color:var(--ink);font-weight:700;border-radius:10px;padding:7px 12px;font-size:12.5px}
+.netbar{position:absolute;left:0;right:0;top:0;z-index:47;background:#b3261e;color:#fff;font-size:12px;text-align:center;padding:calc(env(safe-area-inset-top) + 6px) 12px 6px}
+body:not(.bare) .dev-iphone .netbar{padding-top:50px}
+ol.ios{list-style:none;padding:0;display:grid;gap:12px}
+ol.ios li{display:flex;align-items:center;gap:10px;font-size:13.5px}
+ol.ios .n{width:26px;height:26px;border-radius:50%;background:var(--brand-soft);color:var(--brand);font-weight:700;display:grid;place-items:center;flex:none;font-size:12px}
+ol.ios .shr{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--soft);color:#1a73e8;vertical-align:middle}
+/* the old welcome-card style must not pad the whole app */
+.phone.splash{padding:0;margin-bottom:0}
+body.bare .phone.splash{border-radius:0}

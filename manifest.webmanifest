@@ -1,15 +1,30 @@
 {
+  "id": "/",
   "name": "RideLink",
   "short_name": "RideLink",
-  "description": "Share the road. Split the cost.",
-  "start_url": "/",
+  "description": "Share rides around Abuja. Find a seat or post your trip, agree the price, travel with verified people.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
+  "categories": ["travel", "navigation", "lifestyle"],
   "icons": [
-    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Find a ride", "short_name": "Find", "url": "/?go=find", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Post a trip", "short_name": "Post", "url": "/?go=post", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My trips", "short_name": "Trips", "url": "/?go=trips", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "screenshots": [
+    { "src": "assets/screens/find.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Find a ride around Abuja" },
+    { "src": "assets/screens/driver.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Drivers see earnings and requests" }
   ]
 }
