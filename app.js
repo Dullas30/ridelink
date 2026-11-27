@@ -287,7 +287,7 @@ function lAdapter(el){
 /* --- places: search, coordinates, address for a GPS point --- */
 async function geocode(q){
   if(!q) return null; if(q in geoCache) return geoCache[q]; let r=null;
-  try{ if(MAPMODE==='mapbox'){ const j=await (await fetch(`${MB}/search/geocode/v6/forward?q=${encodeURIComponent(q.replace(/, Nigeria$/,''))}&country=ng&bbox=${FCT_BBOX}&proximity=7.48,9.07&limit=1&${mbq()}`)).json(); const f=j.features&&j.features[0]; if(f) r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; }
+  try{ if(MAPMODE==='mapbox'){ const j=await (await fetch(`${MB}/search/geocode/v6/forward?q=${encodeURIComponent(q.replace(/, Nigeria$/,''))}&country=ng&bbox=${FCT_BBOX}&proximity=7.48,9.07&limit=1&${mbq()}`)).json(); const f=j.features&&j.features[0], w=q.toLowerCase().split(/[\s,]+/)[0]; if(f&&(f.properties.name||'').toLowerCase().includes(w)) r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; }
     if(!r&&MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({address:q,region:'ng'}); const l=res.results[0].geometry.location; r={lat:l.lat(),lng:l.lng()}; }
     else if(!r){ const qq=encodeURIComponent(q.replace(/, Nigeria$/,'')); for(const bb of ABUJA_ONLY?['6.70,8.40,7.90,9.60']:['6.70,8.40,7.90,9.60',NG_BBOX]){
         const j=await (await fetch('https://photon.komoot.io/api/?limit=1&lang=en&lat=9.06&lon=7.49&bbox='+bb+'&q='+qq)).json(); const f=j.features&&j.features[0];
@@ -322,14 +322,20 @@ const localSugg=q=>{ q=q.trim().toLowerCase(); const seen=new Set(), out=[];
   Object.keys(AREAS).forEach(a=>{ const k='Abuja · '+a; if(!seen.has(k)&&(!q||a.toLowerCase().includes(q))){ seen.add(k); out.push({label:a,sub:'Abuja',city:'Abuja',ll:{lat:AREAS[a][0],lng:AREAS[a][1]}}); } });
   if(!ABUJA_ONLY) Object.values(CITIES).forEach(c=>{ if(!seen.has(c.n)&&(!q||c.n.toLowerCase().includes(q))){ seen.add(c.n); out.push({label:c.n,sub:'Nigeria',city:c.n,ll:LLc(c)}); } });
   return out.slice(0,6); };
+/* put results whose name contains what was typed first, then the rest; drop repeats */
+function mergeSugg(q,...lists){ const nq=q.trim().toLowerCase(), seen=new Set(), all=[];
+  lists.flat().forEach(x=>{ const k=(x.label||'').toLowerCase()+'|'+(x.ll?x.ll.lat.toFixed(3)+x.ll.lng.toFixed(3):''); if(!x.label||seen.has(k)) return; seen.add(k); all.push(x); });
+  const hit=x=>(x.label||'').toLowerCase().includes(nq)||nq.split(/\s+/).every(w=>(x.label+' '+x.sub).toLowerCase().includes(w));
+  return all.filter(hit).concat(all.filter(x=>!hit(x))).slice(0,7); }
 async function suggest(q){
   if(q.trim().length<2) return localSugg(q);
+  let mb=[];
   try{
     if(MAPMODE==='mapbox'){ const near=S.loc&&S.loc.acc<1500?`${S.loc.lng},${S.loc.lat}`:'7.48,9.07';
       const j=await (await fetch(`${MB}/search/geocode/v6/forward?q=${encodeURIComponent(q)}&country=ng&bbox=${FCT_BBOX}&proximity=${near}&autocomplete=true&limit=6&language=en&${mbq()}`)).json();
       const l=(j.features||[]).map(f=>{ const p=f.properties||{}, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
         return {label:p.name,sub:p.place_formatted||'',ll,city:cityOf([(p.context&&p.context.place||{}).name,(p.context&&p.context.region||{}).name],ll)}; }).filter(x=>x.label);
-      if(l.length) return l; }
+      mb=l; }
     if(MAPMODE==='google'){ const {AutocompleteSuggestion}=await google.maps.importLibrary('places');
       const {suggestions}=await AutocompleteSuggestion.fetchAutocompleteSuggestions({input:q,includedRegionCodes:['ng'],...(S.loc?{origin:{lat:S.loc.lat,lng:S.loc.lng}}:{})});
       const l=suggestions.filter(s=>s.placePrediction).slice(0,6).map(s=>({label:s.placePrediction.mainText.text,sub:s.placePrediction.secondaryText?s.placePrediction.secondaryText.text:'',pred:s.placePrediction}));
@@ -339,15 +345,15 @@ async function suggest(q){
       if(!ABUJA_ONLY&&!(j.features||[]).length) j=await (await fetch('https://photon.komoot.io/api/?limit=6&lang=en&bbox='+NG_BBOX+bias+'&q='+encodeURIComponent(q))).json();
       const l=(j.features||[]).map(f=>{ const p=f.properties, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
         return {label:p.name||p.street||p.city,sub:[p.street&&p.name!==p.street?p.street:'',p.district||p.locality,p.city||p.county,p.state].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),ll,city:cityOf([p.city,p.county,p.state,p.name],ll)}; }).filter(x=>x.label);
-      if(l.length>=3) return l;
+      if(l.length>=3) return mergeSugg(q,mb,l);
       try{ const vb='&viewbox=6.70,9.60,7.90,8.40'+(ABUJA_ONLY?'&bounded=1':''); const n=await (await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=ng'+vb+'&q='+encodeURIComponent(q))).json();
         const seen=new Set(l.map(x=>x.label.toLowerCase()));
         n.forEach(r=>{ const a=r.address||{}, lab=r.name||a.road||r.display_name.split(',')[0]; if(!lab||seen.has(lab.toLowerCase())) return; seen.add(lab.toLowerCase());
           const ll={lat:+r.lat,lng:+r.lon}; l.push({label:lab,sub:[a.road&&a.road!==lab?a.road:'',a.suburb||a.neighbourhood||a.quarter,a.city||a.state].filter((v,i,x)=>v&&x.indexOf(v)===i).join(', '),ll,city:cityOf([a.city,a.county,a.state],ll)}); });
       }catch(e){}
-      if(l.length) return l.slice(0,7); }
-  }catch(e){}
-  return localSugg(q);
+      if(l.length||mb.length) return mergeSugg(q,mb,l); }
+  }catch(e){ if(mb.length) return mergeSugg(q,mb); }
+  return mb.length?mergeSugg(q,mb):localSugg(q);
 }
 async function resolveSugg(s){
   if(s.pred){ const pl=s.pred.toPlace(); await pl.fetchFields({fields:['location','addressComponents']}); const ll={lat:pl.location.lat(),lng:pl.location.lng()};
