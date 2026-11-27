@@ -4,5 +4,5 @@
      so nobody else can use it. Never put a secret "sk." token here.
    Leave it empty and the app uses the free fallback map, so nothing breaks. */
 window.RIDELINK_CONFIG = {
-  MAPBOX_TOKEN: ''
+  MAPBOX_TOKEN: 'pk.eyJ1IjoiZHVsbGFzIiwiYSI6ImNtd3oyN2FqbjBmeHcyeXM3bTF6dnY1ZTkifQ.ix9po87gVoRWjh3orKX5Jw'
 };
