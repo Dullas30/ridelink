@@ -3,7 +3,7 @@
    - Pages and app files: try the network first (so updates show up), fall back to the saved copy.
    - Logos, icons and the map library: use the saved copy first.
    - Maps, routes and place search come from other websites and are never cached here. */
-const VERSION = 'rl-v4';
+const VERSION = 'rl-v5';
 const SHELL = ['./', './index.html', './offline.html', './manifest.webmanifest', './config.js',
   './assets/logo.png', './assets/logo-mark.png', './assets/logo-white.png',
   './assets/icons/icon-192.png', './assets/icons/icon-512.png', './assets/icons/apple-touch-icon.png',

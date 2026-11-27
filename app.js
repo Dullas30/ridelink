@@ -121,9 +121,9 @@ const S = {
     {id:6,driver:'Hauwa Garba',rating:4.8,count:87,fromC:'kaduna',toC:'abuja',from:'Kaduna · Rigasa',to:'Abuja · Jabi',when:'Tomorrow · 3:00 PM',seats:3,cap:3,price:6500,neg:true,car:'Kia Cerato, red',rules:['AC','Luggage ok','Quiet ride']},
     {id:7,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Central Business District',when:'Tomorrow · 7:00 AM',seats:2,cap:3,price:1500,neg:true,floor:1200,boosted:false,car:'Toyota Camry, silver',rules:['AC','Luggage ok']},
     {id:8,past:true,driver:'Hauwa Garba',rating:4.8,count:87,fromC:'kaduna',toC:'abuja',from:'Kaduna · Rigasa',to:'Abuja · Jabi',when:'Fri 14 Nov · 3:00 PM',seats:0,cap:3,price:6500,neg:true,car:'Kia Cerato, red',rules:['AC']},
-    {id:9,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Maitama',when:'Mon 24 Nov · 7:00 AM',seats:0,cap:3,price:1500,neg:true,car:'Toyota Camry, silver',rules:['AC'],earned:4500,riders:3,
+    {id:9,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Maitama',when:'Mon 24 Nov · 7:00 AM',seats:0,cap:3,price:1500,neg:true,car:'Toyota Camry, silver',rules:['AC'],earned:4500,riders:3,fin:2,
       pax:[{name:'Chinedu Okeke',amount:1500},{name:'Amaka Eze',amount:1500},{name:'Bala Musa',amount:1500}],rated:4.9},
-    {id:10,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Central Business District',to:'Abuja · Kubwa',when:'Fri 21 Nov · 5:30 PM',seats:1,cap:3,price:1500,neg:true,car:'Toyota Camry, silver',rules:['AC','Luggage ok'],earned:2800,riders:2,
+    {id:10,past:true,mine:true,driver:'You',rating:4.9,count:42,fromC:'abuja',toC:'abuja',from:'Abuja · Central Business District',to:'Abuja · Kubwa',when:'Fri 21 Nov · 5:30 PM',seats:1,cap:3,price:1500,neg:true,car:'Toyota Camry, silver',rules:['AC','Luggage ok'],earned:2800,riders:2,fin:1,paidOut:'Mon 24 Nov',
       pax:[{name:'Fatima Sani',amount:1500},{name:'Ifeanyi Obi',amount:1300}],rated:5}
   ],
   offers:[],
@@ -751,7 +751,7 @@ function tick(){ const T=S.track; if(!T||S.view!=='track'){ stopTrack(); return;
   if(T.t>=1){ stopTrack(); arrive(); } }
 function arrive(){ const T=S.track; T.t=1; T.arrived=true; const t=trip(T.tripId); t.live=false; t.prog=0;
   if(T.role==='passenger'){ const b=S.bookings.find(x=>x.id===T.bid); if(b) b.status='completed'; S.sheet={type:'rate',bid:T.bid,stars:0}; }
-  else { t.past=true; t.earned=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').reduce((s,i)=>s+i.amount,0); t.pax=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').map(i=>({name:i.name,amount:i.amount})); t.riders=t.pax.length; t.when=t.when.replace(/^\w+/,'Today'); ['today','week','month','all'].forEach(k=>S.earn[k]+=t.earned); S.dtab='past'; toast('Trip complete. '+naira(t.earned)+' is on its way to you.'); }
+  else { t.past=true; t.fin=Date.now(); t.earned=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').reduce((s,i)=>s+i.amount,0); t.pax=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').map(i=>({name:i.name,amount:i.amount})); t.riders=t.pax.length; t.when=t.when.replace(/^\w+/,'Today'); ['today','week','month','all'].forEach(k=>S.earn[k]+=t.earned); S.dtab='past'; toast('Trip complete. '+naira(t.earned)+' is on its way to you.'); }
   render(); }
 const trackMap = () => { const T=S.track,t=trip(T.tripId); return gmap(Object.assign(tripPlaces(t),{car:T.t,live:true}),T.arrived?'Trip finished':'Live'); };
 function vTrack(){
@@ -809,7 +809,7 @@ function heroHTML(){ return `<div class="hero" id="hero"><div class="row between
 function setPer(k){ S.earnP=k; const h=$('#hero'); if(!h) return;
   h.querySelector('.meta').textContent='Earned · '+PER[k]; h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[k]);
   h.querySelectorAll('.pers button').forEach(b=>b.setAttribute('aria-selected',b.dataset.k===k)); }
-function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} const h=$('#hero'); if(h&&S.view==='earn'){ h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[S.earnP]); const e=h.querySelector('.eye'); e.innerHTML=ic(S.hideBal?'eyeoff':'eye',18); e.setAttribute('aria-label',(S.hideBal?'Show':'Hide')+' earnings'); } else render(); }
+function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} document.querySelectorAll('[data-amt]').forEach(x=>x.textContent=S.hideBal?'₦ •••':naira(+x.dataset.amt)); const h=$('#hero'); if(h&&S.view==='earn'){ h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[S.earnP]); const e=h.querySelector('.eye'); e.innerHTML=ic(S.hideBal?'eyeoff':'eye',18); e.setAttribute('aria-label',(S.hideBal?'Show':'Hide')+' earnings'); } else render(); }
 function pastCard(t){
   const pax=t.pax||[], tot=pax.reduce((x,p)=>x+p.amount,0)||t.earned||0;
   return `<details class="card past"><summary><div class="grow"><div class="name">${routeLabel(t)}</div><div class="meta">${esc(t.when)} · ${pax.length||t.riders||0} passengers</div></div><span class="chip good">${S.hideBal?'₦ •••':naira(t.earned||tot)}</span><span class="chev">${ic('chev',16)}</span></summary>
@@ -832,12 +832,28 @@ function vDTrips(){
       :(list.length?`<p class="sub">Tap a trip to see the details.</p>${list.map(pastCard).join('')}`:empty)}`;
 }
 /* earnings page (driver) */
+function earnCard(t){
+  const pax=t.pax||[], tot=pax.reduce((x,p)=>x+p.amount,0)||t.earned||0, m=v=>`<span data-amt="${v}">${S.hideBal?'₦ •••':naira(v)}</span>`, n=pax.length;
+  const stack=pax.slice(0,3).map(p=>`<span class="avatar sm">${initials(p.name)}</span>`).join('')+(n>3?`<span class="avatar sm more">+${n-3}</span>`:'');
+  const pr=p=>{ const d=p.amount-t.price; return `<div class="kv"><span class="row" style="gap:8px"><span class="avatar sm">${initials(p.name)}</span><span>${esc(p.name)}${p.seats>1?` <small class="tag">${p.seats} seats</small>`:''}${d>0?` <small class="tag tip">+${naira(d)} tip</small>`:d<0?` <small class="tag">deal</small>`:''}</span></span><b>${m(p.amount)}</b></div>`; };
+  return `<details class="card past ec"><summary>
+      <div class="grow"><div class="name">${routeLabel(t)}</div><div class="meta">${esc(t.when)}</div>
+        <div class="row" style="gap:8px;margin-top:6px"><span class="stack">${stack}</span><span class="meta">${n} passenger${n===1?'':'s'}${t.rated?' · ★ '+t.rated:''}</span></div></div>
+      <div class="eamt"><b>${m(tot)}</b><span class="chip ${t.paidOut?'good':'promo'}">${t.paidOut?'Paid out':'Pending'}</span></div><span class="chev">${ic('chev',16)}</span></summary>
+    <div class="pd"><div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
+      <div class="kv"><span>Distance</span><b>≈ ${Math.round(tKm(t))} km · ${dur(tMins(t))}</b></div>
+      <div class="kv"><span>Listed price</span><b>${naira(t.price)} per seat</b></div>
+      <div class="kv"><span>Seats filled</span><b>${t.cap-t.seats} of ${t.cap}</b></div>
+      <div class="label" style="margin:10px 0 2px">What each passenger paid</div>${pax.map(pr).join('')||'<div class="meta">No passengers on this trip.</div>'}
+      <div class="kv tot"><span>You earned</span><b>${m(tot)}</b></div>
+      <div class="note" style="margin-top:8px">${ic('bank',14)} ${t.paidOut?'Paid to '+esc(S.user.bank)+' on '+esc(t.paidOut):'Goes to '+esc(S.user.bank)+' next Monday'}</div></div></details>`;
+}
 function vEarn(){
-  const done=myTrips().filter(t=>t.past).sort((a,b)=>b.id-a.id);
-  const row=t=>`<div class="kv"><span><b class="ename">${routeLabel(t)}</b><small>${esc(t.when)} · ${(t.pax||[]).length} passenger${(t.pax||[]).length===1?'':'s'}</small></span><b>${S.hideBal?'₦ •••':naira((t.pax||[]).reduce((a,x)=>a+x.amount,0))}</b></div>`;
+  const done=myTrips().filter(t=>t.past).sort((a,b)=>(b.fin||0)-(a.fin||0)), pax=done.reduce((x,t)=>x+(t.pax||[]).length,0);
   return `<h2>Earnings</h2><p class="sub">Money from finished trips. Paid to your bank every Monday.</p>
   ${heroHTML()}
-  <h3>Recent trips</h3><div class="card">${done.length?done.map(row).join(''):'<div class="meta">Finished trips show up here.</div>'}</div>
+  <div class="row between" style="margin:18px 0 8px"><h3 style="margin:0">Recent trips</h3><span class="meta">${done.length} trip${done.length===1?'':'s'} · ${pax} passengers</span></div>
+  ${done.length?`<p class="sub" style="margin-top:-4px">Tap a trip to see who paid what.</p>${done.map(earnCard).join('')}`:'<div class="empty"><b>No earnings yet</b>Finished trips show up here.</div>'}
   <h3>Payout</h3><div class="card">${lrow('bank',esc(S.user.bank),'Next payout Monday',soon('Payout account'))}</div>`;
 }
 /* post a trip */
