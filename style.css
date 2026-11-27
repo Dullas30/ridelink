@@ -632,3 +632,7 @@ details.ec .note{display:flex;align-items:center;gap:6px}
 .mcar svg{width:26px;height:26px;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
 .macc{border-radius:50%;background:rgba(47,128,237,.12);pointer-events:none}
 .mapboxgl-marker.udot{width:20px;height:20px}
+
+/* installed iPhone: reach the true bottom edge, no blank strip under the tab bar */
+body.bare .phone{bottom:calc(-1 * var(--gap,0px))!important}
+body.bare nav.tabs{padding-bottom:max(8px,env(safe-area-inset-bottom),var(--homepad,0px))}
