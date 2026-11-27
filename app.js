@@ -1141,17 +1141,6 @@ function fit(){
   const d=DEVICES[S.dev], p=$('#phone');
   p.style.transform=bare?'':'scale('+Math.min(1,(innerHeight-96)/d.h,(innerWidth-48)/d.w)+')';
 }
-/* Installed iPhone apps can report a page shorter than the screen, leaving a blank strip under the tab bar.
-   Measure where the page really ends and stretch the app down to the true screen edge. */
-function fillGap(){
-  const standalone=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
-  const root=document.documentElement; let gap=0;
-  if(standalone&&innerHeight>innerWidth&&document.body.classList.contains('bare')){
-    let pr=document.getElementById('gapprobe'); if(!pr){ pr=document.createElement('div'); pr.id='gapprobe'; pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:1px;pointer-events:none;visibility:hidden'; document.body.appendChild(pr); }
-    const g=Math.round(screen.height-pr.getBoundingClientRect().bottom); if(g>=4&&g<=140) gap=g; }
-  root.style.setProperty('--gap',gap+'px'); root.style.setProperty('--homepad',gap?Math.min(gap,30)+'px':'0px'); }
-['resize','orientationchange','pageshow','visibilitychange'].forEach(e=>addEventListener(e,()=>setTimeout(fillGap,80)));
-setTimeout(fillGap,300); setTimeout(fillGap,1500);
 addEventListener('resize',()=>{ fit(); syncMaps(); });
 let lastBand=''; const phoneRO=new ResizeObserver(()=>{ const w=$('#phone').clientWidth, band=(w>=600)+'|'+(w<=340); if(band!==lastBand){ lastBand=band; render(); } else syncMaps(); }); phoneRO.observe($('#phone'));
 if(document.fonts) document.fonts.ready.then(syncMaps);
