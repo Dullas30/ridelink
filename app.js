@@ -102,9 +102,11 @@ const S = {
     notif:true,autoShare:true,places:{home:'Wuse 2, Abuja',work:'Central Business District, Abuja'},
     pStats:{trips:23,rating:4.9,saved:18400},dStats:{trips:42,rating:4.9,accept:96},bank:'GTBank · •••• 4821',offersOn:true},
   onb:{step:'splash',only:null,roles:['passenger'],phone:'',name:'',nin:'',licNo:'',skipped:false,docs:{lic:null,selfie:null,carFront:null,carBack:null,carIn:null,papers:null},veh:{make:'',model:'',color:'',plate:'',seats:3}},
-  from:'', to:'', fromTxt:'', toTxt:'', fromPl:null, toPl:null, fromTyped:false, loc:null, filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
+  from:'', to:'', seatsWant:1, fromTxt:'', toTxt:'', fromPl:null, toPl:null, fromTyped:false, loc:null, filters:[], maxPrice:0, sort:'best', selTrip:null, reqId:null, sel:null, offerId:null, sheet:null, plan:1, toast:null,
   ptab:'up', dtab:'up', track:null, lastBooking:null, nextId:100,
   trips:[
+    {id:31,past:true,driver:'Zainab Yusuf',rating:4.8,count:73,fromC:'abuja',toC:'abuja',from:'Abuja · Gwarinpa',to:'Abuja · Wuse 2',when:'Mon 24 Nov · 7:45 AM',seats:0,cap:3,price:1200,neg:true,car:'Honda Civic, grey',rules:['AC']},
+    {id:32,past:true,driver:'Chidi Nwosu',rating:4.9,count:156,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Central Business District',when:'Fri 21 Nov · 7:15 AM',seats:0,cap:4,price:1500,neg:true,car:'Toyota Corolla, white',rules:['AC','Quiet ride']},
     {id:21,driver:'Chidi Nwosu',rating:4.9,count:156,fromC:'abuja',toC:'abuja',from:'Abuja · Kubwa',to:'Abuja · Central Business District',when:'Today · 7:15 AM',seats:3,cap:4,price:1500,neg:true,boosted:true,car:'Toyota Corolla, white',rules:['AC','Quiet ride','Set pickup points']},
     {id:22,driver:'Zainab Yusuf',rating:4.8,count:73,fromC:'abuja',toC:'abuja',from:'Abuja · Gwarinpa',to:'Abuja · Wuse 2',when:'Today · 7:45 AM',seats:2,cap:3,price:1200,neg:true,car:'Honda Civic, grey',rules:['AC','Women only']},
     {id:23,driver:'Emeka Obi',rating:4.7,count:58,fromC:'abuja',toC:'abuja',from:'Abuja · Lugbe',to:'Abuja · Maitama',when:'Today · 8:00 AM',seats:3,cap:4,price:1800,neg:true,car:'Toyota Camry, black',rules:['AC','Luggage ok']},
@@ -125,10 +127,13 @@ const S = {
       pax:[{name:'Fatima Sani',amount:1500},{name:'Ifeanyi Obi',amount:1300}],rated:5}
   ],
   offers:[],
-  bookings:[],
+  bookings:[
+    {id:61,tripId:31,price:1200,each:1200,seats:1,status:'completed',code:'4821',rated:5},
+    {id:62,tripId:32,price:3000,each:1500,seats:2,status:'completed',code:'7310'}
+  ],
   incoming:[
     {id:1,tripId:7,name:'Chinedu Okeke',amount:1300,status:'new',rating:4.7,trips:31,since:'2024',pickup:'Kubwa Village junction',drop:'Federal Secretariat',bag:'1 small bag',note:'I can be at the gate 10 minutes early.',review:'Polite and on time. — Musa A.'},
-    {id:2,tripId:7,name:'Fatima Sani',amount:1500,status:'new',rating:4.9,trips:12,since:'2025',pickup:'NNPC filling station, Kubwa',drop:'Ministry of Finance',bag:'No luggage',note:'',review:'Easy passenger, ready at pickup. — Amina B.'},
+    {id:2,tripId:7,name:'Fatima Sani',amount:1500,seats:2,status:'new',rating:4.9,trips:12,since:'2025',pickup:'NNPC filling station, Kubwa',drop:'Ministry of Finance',bag:'No luggage',note:'',review:'Easy passenger, ready at pickup. — Amina B.'},
     {id:3,tripId:7,name:'Yusuf Danjuma',amount:1500,status:'accepted',rating:4.8,trips:58,since:'2023',pickup:'Phase 4, Kubwa',drop:'Central Bank',bag:'1 suitcase',note:'',review:''}
   ],
   post:{fromC:'abuja',toC:'abuja',fromA:'Kubwa',toA:'Central Business District',day:'Tomorrow',time:'07:00',seats:3,price:1500,neg:true,floor:1200,rules:['AC','Luggage ok']},
@@ -481,7 +486,7 @@ async function pickSugg(i){
 
 /* ---------- navigation ---------- */
 const HOME = {passenger:'find', driver:'dTrips'};
-const ROOTS=['find','trips','dTrips','post','profile'];
+const ROOTS=['find','trips','dTrips','post','profile','earn'];
 let HIST=[], PUSHED=0;
 function go(v, extra, fromBack){
   if(S.view==='track' && v!=='track') stopTrack();
@@ -585,7 +590,7 @@ function vOnb(){
     b=`<span class="chip">Driver check 2 of 2</span><h2 style="margin-top:8px">Your car</h2><p class="sub">Passengers see your car and plate before they book.</p>
     <div class="two"><div class="field"><label for="vm">Make</label><input class="input" id="vm" value="${esc(v.make)}" placeholder="Toyota" oninput="S.onb.veh.make=this.value;updKyc()"></div><div class="field"><label for="vo">Model</label><input class="input" id="vo" value="${esc(v.model)}" placeholder="Corolla" oninput="S.onb.veh.model=this.value;updKyc()"></div></div>
     <div class="two"><div class="field"><label for="vc">Colour</label><input class="input" id="vc" value="${esc(v.color)}" placeholder="White" oninput="S.onb.veh.color=this.value"></div><div class="field"><label for="vp">Plate number</label><input class="input" id="vp" value="${esc(v.plate)}" placeholder="ABJ 123 KD" oninput="S.onb.veh.plate=this.value.toUpperCase();updKyc()"></div></div>
-    <div class="field"><span class="label">Seats for passengers</span><div class="stepper"><button aria-label="Fewer seats" onclick="S.onb.veh.seats=Math.max(1,S.onb.veh.seats-1);render()">−</button><b>${v.seats}</b><button aria-label="More seats" onclick="S.onb.veh.seats=Math.min(6,S.onb.veh.seats+1);render()">+</button></div></div>
+
     <span class="label">Car photos</span><div class="photos">${tile('carFront','Front')}${tile('carBack','Back')}${tile('carIn','Inside')}</div>
     ${upl('papers','Vehicle papers','Registration and insurance','doc','')}
     ${S.demo?'<button class="link" onclick="demoKyc()">Fill with demo details</button>':''}
@@ -646,12 +651,16 @@ function pickTrip(id){ if(S.selTrip===id){ go('detail',{sel:id}); return; } S.se
 
 /* ---------- passenger views ---------- */
 function bookingCard(b){
-  const t=trip(b.tripId);
-  const act = b.status==='upcoming'
+  const t=trip(b.tripId), up=b.status==='upcoming', n=b.seats||1, row=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`;
+  const act = up
     ? `<div class="btns"><button class="btn sm" onclick="startTrack(${t.id},'passenger',${b.id})">${ic('pin',14)} ${t.live?'Open live trip':'Track trip'}</button><button class="btn ghost sm" onclick="toast('Free cancellation until 2 hours before departure')">Cancel</button></div>`
-    : (b.rated ? `<div class="meta" style="margin-top:6px">You rated this trip</div>` : `<div class="btns"><button class="btn sm" onclick="S.sheet={type:'rate',bid:${b.id},stars:0};render()">${ic('star',14)} Rate trip</button></div>`);
-  return `<div class="card"><div class="row between"><div class="name">${routeLabel(t)}</div><span class="chip ${b.status==='upcoming'?'good':''}">${b.status==='upcoming'?(t.live?'On the way':'Confirmed'):'Completed'}</span></div>
-    <div class="meta">${esc(t.when)} · ${esc(t.driver)} · ${naira(b.price)}</div>${b.status==='upcoming'?`<div class="meta">Pickup code <b>${b.code}</b></div>`:''}${act}</div>`;
+    : (b.rated ? `<div class="meta" style="margin-top:8px">You rated this trip${typeof b.rated==='number'?' ★ '+b.rated:''}</div>` : `<div class="btns"><button class="btn sm" onclick="S.sheet={type:'rate',bid:${b.id},stars:0};render()">${ic('star',14)} Rate trip</button></div>`);
+  return `<details class="card past bk"><summary><div class="grow"><div class="name">${routeLabel(t)}</div><div class="meta">${esc(t.when)} · ${n} seat${n>1?'s':''}</div></div><span class="chip ${up?'good':''}">${up?(t.live?'On the way':'Confirmed'):'Completed'}</span><span class="chev">${ic('chev',16)}</span></summary>
+    <div class="pd"><div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
+    <div class="row" style="gap:10px;margin:4px 0 6px"><div class="avatar sm">${initials(t.driver)}</div><div class="grow"><div class="name" style="font-size:13px">${esc(t.driver)}</div><div class="meta">★ ${t.rating} · ${esc(t.car)}</div></div></div>
+    ${up?row('Pickup code',`<span class="pcode">${b.code}</span>`):''}${row('Seats',String(n))}${row('Price per seat',naira(b.each||b.price/n))}
+    ${row('Distance','≈ '+Math.round(tKm(t))+' km · '+dur(tMins(t)))}<div class="kv tot"><span>${up?'Paid, held until the trip ends':'Total paid'}</span><b>${naira(b.price)}</b></div>
+    ${act}</div></details>`;
 }
 
 function vFind(){
@@ -670,11 +679,15 @@ function vDetail(){
   const t=trip(S.sel); if(!t) return vFind();
   const ex=S.offers.find(o=>o.tripId===t.id&&!['declined','paid'].includes(o.status));
   const rules=[...t.rules.map(ruleBy),...(t.neg?[]:[FIXED_RULE])]; let act;
+  if(S.sel!==S.seatsFor){ S.seatsFor=S.sel; S.seatsWant=1; }
   if(t.mine) act=`<button class="btn ghost" onclick="go('dTrips')">See requests</button>`;
   else if(ex){ const [lab,cls]=statusChip(ex);
     act=`<div class="card row between"><div><div class="name">Your offer ${naira(ex.amount)}</div><div class="meta">${ex.status==='countered'?'Driver countered '+naira(ex.counter):'Sent to the driver'}</div></div><span class="chip ${cls}">${lab}</span></div>
     <button class="btn" onclick="go('thread',{offerId:${ex.id}})">${ex.status==='countered'?'Reply to counter':ex.status==='accepted'?'Pay to confirm':'View offer'}</button>`; }
-  else act=`<div class="dock">${t.neg?`<button class="btn ghost" ${t.seats?'':'disabled'} onclick="S.sheet={type:'offer',tripId:${t.id}};render()">Make offer</button>`:''}<button class="btn" ${t.seats?'':'disabled'} onclick="sendOffer(${t.id},${t.price})">Request seat · ${naira(t.price)}</button></div>`;
+  else { const n=Math.min(S.seatsWant||1,Math.max(1,t.seats));
+    act=`<div class="card seatpick"><div><div class="name">How many seats?</div><div class="meta">${t.seats} seat${t.seats===1?'':'s'} available · ${naira(t.price)} each</div></div>
+      <div class="stepper"><button aria-label="Fewer seats" ${n<=1?'disabled':''} onclick="S.seatsWant=${n-1};render()">−</button><b>${n}</b><button aria-label="More seats" ${n>=t.seats?'disabled':''} onclick="S.seatsWant=${n+1};render()">+</button></div></div>
+    <div class="dock">${t.neg?`<button class="btn ghost" ${t.seats?'':'disabled'} onclick="S.sheet={type:'offer',tripId:${t.id}};render()">Make offer</button>`:''}<button class="btn" ${t.seats?'':'disabled'} onclick="sendOffer(${t.id},${t.price})">Request ${n>1?n+' seats':'seat'} · ${naira(t.price*n)}</button></div>`; }
   return `${backBtn(S.mode==='driver'?'dTrips':'find')}
   ${gmap(tripPlaces(t),'≈ '+Math.round(tKm(t))+' km · '+dur(tMins(t)))}<div>
   <div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="row"><div class="avatar">${initials(t.driver)}</div><div><div class="name">${esc(t.driver)}</div><div class="meta">★ ${t.rating} · ${esc(t.car)}</div></div></div><div class="price">${naira(t.price)}<small> /seat</small></div></div>
@@ -687,26 +700,27 @@ function vDetail(){
 function sendOffer(tripId, amount, existingId){
   const t=trip(tripId); let o;
   if(existingId){ o=offer(existingId); o.round++; o.amount=amount; o.status='pending'; o.msgs.push({w:'me',t:'Offered '+naira(amount)}); }
-  else { o={id:S.nextId++,tripId,amount,round:1,status:'pending',msgs:[{w:'me',t:(amount>=t.price?'Requested a seat at ':'Offered ')+naira(amount)}]}; S.offers.unshift(o); }
+  else { const n=Math.min(S.seatsWant||1,Math.max(1,t.seats)), what=n>1?n+' seats':'a seat';
+    o={id:S.nextId++,tripId,amount,seats:n,round:1,status:'pending',msgs:[{w:'me',t:(amount>t.price?'Offered '+naira(amount)+(n>1?' per seat':'')+' for '+what+' (includes a tip)':amount===t.price?'Requested '+what+' at '+naira(amount)+(n>1?' each':''):'Offered '+naira(amount)+(n>1?' per seat':'')+' for '+what)}]}; S.offers.unshift(o); }
   S.sheet=null; go('thread',{offerId:o.id}); setTimeout(()=>reply(o.id),2200);
 }
 function reply(id){
   const o=offer(id); if(!o||o.status!=='pending')return; const t=trip(o.tripId);
-  if(o.amount>=t.price*0.92){ o.status='accepted'; o.final=o.amount; o.msgs.push({w:'them',t:'Accepted at '+naira(o.amount)}); }
+  if(o.amount>=t.price*0.92){ o.status='accepted'; o.final=o.amount; o.msgs.push({w:'them',t:o.amount>t.price?'Accepted. Thank you for the tip!':'Accepted at '+naira(o.amount)+((o.seats||1)>1?' per seat':'')}); }
   else { const c=Math.min(t.price-100,Math.max(r100((o.amount+t.price)/2),o.amount+100)); o.counter=c; o.status='countered'; o.msgs.push({w:'them',t:(o.round>=3?'Final counter at ':'Countered at ')+naira(c)}); }
   toast(t.driver.split(' ')[0]+' replied to your request');
 }
 function acceptCounter(id){ const o=offer(id); o.final=o.counter; o.status='accepted'; o.msgs.push({w:'me',t:'Accepted '+naira(o.counter)}); render(); }
 function declineOffer(id){ const o=offer(id); o.status='declined'; o.msgs.push({w:'me',t:'Declined'}); go('trips'); }
-function pay(id){ const o=offer(id), t=trip(o.tripId); o.status='paid'; t.seats=Math.max(0,t.seats-1);
-  const b={id:S.nextId++,tripId:t.id,price:o.final,status:'upcoming',code:String(1000+Math.floor(Math.random()*9000))}; S.bookings.unshift(b); S.lastBooking=b.id; go('confirmed',{offerId:id}); }
+function pay(id){ const o=offer(id), t=trip(o.tripId), n=o.seats||1; o.status='paid'; t.seats=Math.max(0,t.seats-n);
+  const b={id:S.nextId++,tripId:t.id,price:o.final*n,each:o.final,seats:n,status:'upcoming',code:String(1000+Math.floor(Math.random()*9000))}; S.bookings.unshift(b); S.lastBooking=b.id; go('confirmed',{offerId:id}); }
 const statusChip = o => ({pending:['Waiting for driver',''],countered:['Driver countered','promo'],accepted:['Accepted · pay to confirm','good'],paid:['Seat confirmed','good'],declined:['Closed','bad']}[o.status]);
 function vThread(){
   const o=offer(S.offerId); if(!o) return vTrips(); const t=trip(o.tripId), [lab,cls]=statusChip(o); let act='';
   if(o.status==='pending') act=`<div class="note">Waiting for ${esc(t.driver.split(' ')[0])} to respond…</div>`;
   if(o.status==='countered') act=`<div class="btns"><button class="btn" onclick="acceptCounter(${o.id})">Accept ${naira(o.counter)}</button>${o.round<3?`<button class="btn ghost" onclick="S.sheet={type:'offer',tripId:${t.id},again:${o.id}};render()">Counter</button>`:''}</div>
     <div class="btns"><button class="btn bad" onclick="declineOffer(${o.id})">Decline</button></div><p class="hint" style="margin-top:8px">Round ${o.round} of 3${o.round>=3?'. This is the driver’s final price.':'.'}</p>`;
-  if(o.status==='accepted') act=`<p class="hint" style="margin-top:8px">Your money is held safely and released to the driver after the trip. Free cancellation until 2 hours before departure.</p><div class="dock"><button class="btn" onclick="pay(${o.id})">Pay ${naira(o.final)} to confirm</button></div>`;
+  if(o.status==='accepted') act=`<p class="hint" style="margin-top:8px">Your money is held safely and released to the driver after the trip. Free cancellation until 2 hours before departure.</p><div class="dock"><button class="btn" onclick="pay(${o.id})">Pay ${naira(o.final*(o.seats||1))} to confirm${(o.seats||1)>1?' · '+o.seats+' seats':''}</button></div>`;
   return `${backBtn('trips')}
   <div class="card"><div class="row between"><div class="name">${esc(t.driver)}</div><span class="chip ${cls}">${lab}</span></div><div class="meta" style="margin-top:4px">${esc(t.from)} → ${esc(t.to)}</div><div class="meta">${esc(t.when)} · Listed ${naira(t.price)}</div></div>
   <div class="msgs">${o.msgs.map(m=>`<div class="bubble ${m.w}">${esc(m.t)}</div>`).join('')}</div>${act}`;
@@ -764,11 +778,11 @@ const gap = (amt,price) => amt<price ? naira(price-amt)+' below your price' : 'Y
 function incomingCard(i){
   const t=trip(i.tripId); if(!t) return '';
   const right = i.status==='countered' ? `<span class="chip promo">Countered ${naira(i.counter)}</span>` : `<div class="price">${naira(i.amount)}</div>`;
-  return `<div class="card"><div class="row between"><div class="row"><div class="avatar">${initials(i.name)}</div><div><div class="name">${esc(i.name)}</div><div class="meta">★ ${i.rating||'New'} · ${routeLabel(t)}</div></div></div>${right}</div>
+  return `<div class="card"><div class="row between"><div class="row"><div class="avatar">${initials(i.name)}</div><div><div class="name">${esc(i.name)}</div><div class="meta">★ ${i.rating||'New'} · ${(i.seats||1)>1?(i.seats+' seats · '):''}${routeLabel(t)}</div></div></div>${right}</div>
     <div class="row between" style="margin-top:8px"><span class="meta">${i.status==='countered'?'Waiting for their reply':gap(i.amount,t.price)}</span><button class="btn sm" onclick="go('req',{reqId:${i.id}})">${ic('eye',14)} View</button></div></div>`;
 }
 function incomingAct(id,a){ const i=S.incoming.find(x=>x.id===id), t=trip(i.tripId);
-  if(a==='accept'){ if(t.seats<1){ toast('No seats left on this trip'); return; } i.status='accepted'; t.seats--; go('dTrips'); toast(i.name.split(' ')[0]+' is confirmed for this trip'); }
+  if(a==='accept'){ const n=i.seats||1; if(t.seats<n){ toast('Not enough seats left on this trip'); return; } i.status='accepted'; t.seats-=n; go('dTrips'); toast(i.name.split(' ')[0]+' is confirmed for this trip'); }
   else { i.status='declined'; go('dTrips'); toast('Request declined'); } }
 function vReq(){
   const i=S.incoming.find(x=>x.id===S.reqId); if(!i) return vDTrips(); const t=trip(i.tripId), low=t.neg&&t.floor&&i.amount<t.floor, open=i.status==='new';
@@ -779,7 +793,7 @@ function vReq(){
     <div class="chips" style="justify-content:center;margin-top:8px"><span class="chip good">${ic('check',12)} Phone verified</span><span class="chip good">${ic('shield',12)} ID verified</span></div></div>
   <div class="card"><div class="row between"><div><div class="meta">${open?'Offers':'Agreed'}</div><div class="price" style="font-size:22px">${naira(i.status==='countered'?i.counter:i.amount)}</div></div><span class="chip ${i.amount<t.price?'promo':'good'}">${gap(i.amount,t.price)}</span></div>
     <div class="route"><div>${esc(i.pickup)}, ${esc(t.from.split(' · ')[0])}<small>${esc(t.when)}</small></div><div>${esc(i.drop)}, ${esc(t.to.split(' · ')[0])}</div></div>
-    ${row('Seats','1')}${row('Luggage',esc(i.bag))}${row('Your listed price',naira(t.price))}
+    ${row('Seats',String(i.seats||1))}${row('Luggage',esc(i.bag))}${row('Your listed price',naira(t.price))}
     ${i.note?`<div class="note" style="margin-top:8px">“${esc(i.note)}”</div>`:''}
     <div class="btns">${gmBtn('Directions to pickup',i.pickup+', '+t.from.split(' · ')[0]+', Nigeria')}</div></div>
   ${i.review?`<h3>From another driver</h3><div class="card"><div class="meta">${esc(i.review)}</div></div>`:''}
@@ -795,7 +809,7 @@ function heroHTML(){ return `<div class="hero" id="hero"><div class="row between
 function setPer(k){ S.earnP=k; const h=$('#hero'); if(!h) return;
   h.querySelector('.meta').textContent='Earned · '+PER[k]; h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[k]);
   h.querySelectorAll('.pers button').forEach(b=>b.setAttribute('aria-selected',b.dataset.k===k)); }
-function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} const h=$('#hero'); if(h&&S.view==='dTrips'&&S.dtab==='up'){ h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[S.earnP]); const e=h.querySelector('.eye'); e.innerHTML=ic(S.hideBal?'eyeoff':'eye',18); e.setAttribute('aria-label',(S.hideBal?'Show':'Hide')+' earnings'); } else render(); }
+function toggleBal(){ S.hideBal=!S.hideBal; try{ localStorage.setItem('rl_hideBal',S.hideBal?'1':'0'); }catch(e){} const h=$('#hero'); if(h&&S.view==='earn'){ h.querySelector('.big').textContent=S.hideBal?'₦ ••••••':naira(S.earn[S.earnP]); const e=h.querySelector('.eye'); e.innerHTML=ic(S.hideBal?'eyeoff':'eye',18); e.setAttribute('aria-label',(S.hideBal?'Show':'Hide')+' earnings'); } else render(); }
 function pastCard(t){
   const pax=t.pax||[], tot=pax.reduce((x,p)=>x+p.amount,0)||t.earned||0;
   return `<details class="card past"><summary><div class="grow"><div class="name">${routeLabel(t)}</div><div class="meta">${esc(t.when)} · ${pax.length||t.riders||0} passengers</div></div><span class="chip good">${S.hideBal?'₦ •••':naira(t.earned||tot)}</span><span class="chev">${ic('chev',16)}</span></summary>
@@ -812,11 +826,19 @@ function vDTrips(){
   const card=t=>`<div class="card ${t.boosted?'promoted':''}"><div class="row between"><div class="name">${routeLabel(t)}</div>${t.live?'<span class="chip good">On the way</span>':t.boosted?'<span class="chip promo">Promoted</span>':`<b class="price">${naira(t.price)}</b>`}</div>
       <div class="meta">${esc(t.when)} · ${t.cap-t.seats} of ${t.cap} seats filled</div><div class="prog"><i style="width:${(t.cap-t.seats)/t.cap*100}%"></i></div>
       <div class="btns"><button class="btn sm" onclick="startTrack(${t.id},'driver')">${t.live?'Open live trip':'Start trip'}</button>${t.boosted||t.live?'':`<button class="btn boost sm" onclick="S.sheet={type:'boost',tripId:${t.id}};render()">Boost</button>`}</div></div>`;
-  const hero=heroHTML();
   const empty=`<div class="empty"><b>${up?'No upcoming trips':'No past trips yet'}</b>${up?'Post a trip from the middle button.':'Finished trips show up here.'}</div>`;
   return `<h2>My trips</h2><div class="tabs2" role="tablist" style="margin-top:8px"><button role="tab" aria-selected="${up}" onclick="S.dtab='up';render()">Active</button><button role="tab" aria-selected="${!up}" onclick="S.dtab='past';render()">Past</button></div>
-  ${up?hero+`<h3>Your trips</h3>${list.length?list.map(card).join(''):empty}`+(reqs.length?`<h3>Requests (${reqs.length})</h3>${reqs.map(incomingCard).join('')}`:`<h3>Requests</h3><div class="note">New seat requests show up here.</div>`)
+  ${up?`<h3>Your trips</h3>${list.length?list.map(card).join(''):empty}`+(reqs.length?`<h3>Requests (${reqs.length})</h3>${reqs.map(incomingCard).join('')}`:`<h3>Requests</h3><div class="note">New seat requests show up here.</div>`)
       :(list.length?`<p class="sub">Tap a trip to see the details.</p>${list.map(pastCard).join('')}`:empty)}`;
+}
+/* earnings page (driver) */
+function vEarn(){
+  const done=myTrips().filter(t=>t.past).sort((a,b)=>b.id-a.id);
+  const row=t=>`<div class="kv"><span><b class="ename">${routeLabel(t)}</b><small>${esc(t.when)} · ${(t.pax||[]).length} passenger${(t.pax||[]).length===1?'':'s'}</small></span><b>${S.hideBal?'₦ •••':naira((t.pax||[]).reduce((a,x)=>a+x.amount,0))}</b></div>`;
+  return `<h2>Earnings</h2><p class="sub">Money from finished trips. Paid to your bank every Monday.</p>
+  ${heroHTML()}
+  <h3>Recent trips</h3><div class="card">${done.length?done.map(row).join(''):'<div class="meta">Finished trips show up here.</div>'}</div>
+  <h3>Payout</h3><div class="card">${lrow('bank',esc(S.user.bank),'Next payout Monday',soon('Payout account'))}</div>`;
 }
 /* post a trip */
 const distText = () => { const p=S.post; if(p.fromC===p.toC&&!(p.fromA.trim()&&p.toA.trim())) return 'Add a pickup and drop-off spot'; return '≈ '+Math.round(routeKm(p.fromC,p.fromA,p.toC,p.toA))+' km · about '+dur(routeMins(p.fromC,p.fromA,p.toC,p.toA)); };
@@ -836,7 +858,7 @@ function vPost(){
     <div class="field"><label for="ptc">To city</label><select class="input" id="ptc" onchange="S.post.toC=this.value;S.post.toLL=null;updPost()">${opts(p.toC)}</select></div></div></details>`}`;
   if(st===2) body=`<div class="field"><span class="label">Day</span><div class="chips">${['Today','Tomorrow','Fri','Sat','Sun'].map(d=>`<button class="chip" aria-pressed="${d===p.day}" onclick="S.post.day='${d}';render()">${d}</button>`).join('')}</div></div>
     <div class="field"><label for="ptm">Leaving at</label><input class="input" id="ptm" type="time" value="${p.time}" onchange="S.post.time=this.value"></div>
-    <div class="field"><span class="label">Seats for passengers</span><div class="stepper big"><button aria-label="Fewer seats" onclick="S.post.seats=Math.max(1,S.post.seats-1);render()">−</button><b>${p.seats}</b><button aria-label="More seats" onclick="S.post.seats=Math.min(S.user.veh.seats||4,S.post.seats+1);render()">+</button></div></div>`;
+    <div class="field"><span class="label">Seats available for passengers</span><div class="stepper big"><button aria-label="Fewer seats" onclick="S.post.seats=Math.max(1,S.post.seats-1);render()">−</button><b>${p.seats}</b><button aria-label="More seats" onclick="S.post.seats=Math.min(7,S.post.seats+1);render()">+</button></div></div>`;
   if(st===3) body=`<div class="field"><label for="pp">Price per seat (₦)</label><input class="input bigin" id="pp" type="number" inputmode="numeric" value="${p.price}" oninput="S.post.price=+this.value"></div>
     <div class="toggle"><div><div class="name">Allow offers</div><div class="hint">Passengers can suggest a price.</div></div><button class="switch" aria-pressed="${p.neg}" aria-label="Allow offers" onclick="S.post.neg=!S.post.neg;render()"></button></div>
     ${p.neg?`<div class="field"><label for="pfl">Lowest price you accept (₦)</label><input class="input" id="pfl" type="number" inputmode="numeric" value="${p.floor}" oninput="S.post.floor=+this.value"></div>`:''}
@@ -888,7 +910,7 @@ function vProfile(){
   const v=u.veh, docs=[['id','NIN','Verified with NIMC','Verified'],['id','Driver’s licence','Valid until Aug 2028','Verified'],['doc','Vehicle papers','Insurance renews Jan 2027','Verified'],['camera','Car photos','Front, back and inside','3 photos']];
   return head+`<h3>Your car</h3><div class="card"><div class="row"><span class="carbox">${ic('car',26)}</span><div class="grow"><div class="name">${esc(v.make+' '+v.model)}</div><div class="meta">${esc(v.color||'')}${v.color?' · ':''}${v.seats} passenger seats</div></div><span class="plate">${esc(v.plate)}</span></div></div>
     <h3>Documents</h3><div class="card">${docs.map(([i,t,m,c])=>lrow(i,t,m,null,`<span class="chip good">${c}</span>`)).join('')}</div>
-    <h3>Payouts</h3><div class="card">${lrow('bank',esc(u.bank),'Paid every Monday for finished trips',soon('Payout account'))}${lrow('wallet','Earnings',S.hideBal?'Hidden':naira(S.earn.month)+' this month',"S.dtab='up';go('dTrips')")}</div>
+    <h3>Payouts</h3><div class="card">${lrow('bank',esc(u.bank),'Paid every Monday for finished trips',soon('Payout account'))}${lrow('wallet','Earnings',S.hideBal?'Hidden':naira(S.earn.month)+' this month',"go('earn')")}</div>
     <h3>What passengers say <span class="swipe">Swipe ${ic('arrow',12)}</span></h3>${rail(S.reviews.map(r=>`<div class="rev"><div class="row between"><b>${esc(r.n)}</b><span class="meta">${'★'.repeat(r.s)}</span></div><p>${esc(r.t)}</p></div>`).join(''))}
     <h3>Trip defaults</h3><div class="card">${lrow('tag','Allow offers on new trips','Passengers can negotiate your price',null,sw(u.offersOn,'S.user.offersOn=!S.user.offersOn;S.post.neg=S.user.offersOn;render()','Allow offers'))}
       ${lrow('check','Trip rules',esc(S.post.rules.join(', ')||'None set'),"go('post')")}</div>
@@ -897,9 +919,9 @@ function vProfile(){
 /* ---------- sheets ---------- */
 function sheetHTML(){
   const s=S.sheet; if(!s) return '';
-  if(s.type==='offer'){ const t=trip(s.tripId), o=s.again?offer(s.again):null, st=t.price<=5000?100:500, start=o?o.counter:Math.max(st,Math.round(t.price*0.85/st)*st);
-    return `<div class="sheet" role="dialog" aria-label="Make an offer"><h2>${o?'Counter the driver':'Make an offer'}</h2><p class="sub">Listed price ${naira(t.price)} per seat. The driver can accept, counter or decline.</p>
-      <div class="field"><label for="oa">Your price (₦)</label><div class="amt"><button aria-label="Lower by ${st}" onclick="bump(-${st},${t.price})">−</button><input class="input" id="oa" type="number" inputmode="numeric" step="${st}" value="${start}"><button aria-label="Raise by ${st}" onclick="bump(${st},${t.price})">+</button></div><span class="hint">Each tap changes your offer by ${naira(st)}.</span></div>
+  if(s.type==='offer'){ const t=trip(s.tripId), o=s.again?offer(s.again):null, _s=(S.offerSeats=o?(o.seats||1):Math.min(S.seatsWant||1,Math.max(1,t.seats)), setTimeout(()=>offerHint(t.price),0)), st=t.price<=5000?100:500, start=o?o.counter:Math.max(st,Math.round(t.price*0.85/st)*st);
+    return `<div class="sheet" role="dialog" aria-label="Make an offer"><h2>${o?'Counter the driver':'Make an offer'}</h2><p class="sub">Listed price ${naira(t.price)} per seat${S.offerSeats>1?' · '+S.offerSeats+' seats':''}. Go lower to ask for a deal, or higher to tip the driver.</p>
+      <div class="field"><label for="oa">Your price (₦)</label><div class="amt"><button aria-label="Lower by ${st}" onclick="bump(-${st},${t.price})">−</button><input class="input" id="oa" type="number" inputmode="numeric" step="${st}" value="${start}" oninput="offerHint(${t.price})"><button aria-label="Raise by ${st}" onclick="bump(${st},${t.price})">+</button></div><span class="ohint" id="ohint"></span></div>
       <div class="btns"><button class="btn ghost" onclick="S.sheet=null;render()">Cancel</button><button class="btn" onclick="submitOffer(${t.id},${s.again||0})">Send offer</button></div></div>`; }
   if(s.type==='counter'){ const i=S.incoming.find(x=>x.id===s.inc), t=trip(i.tripId);
     return `<div class="sheet" role="dialog" aria-label="Counter offer"><h2>Counter ${esc(i.name.split(' ')[0])}</h2><p class="sub">They offered ${naira(i.amount)}. Your listed price is ${naira(t.price)}.</p>
@@ -937,15 +959,18 @@ function sheetHTML(){
       <div class="btns" style="flex-direction:column"><button class="btn bad" onclick="S.sheet=null;toast('Demo: this would call 112')">Call 112</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: your emergency contact would be alerted')">Alert my emergency contact</button><button class="btn ghost" onclick="S.sheet=null;toast('Demo: live location would be shared')">Share live location</button><button class="btn ghost" onclick="S.sheet=null;render()">Close</button></div></div>`;
   return '';
 }
-function bump(d,max){ const el=$('#oa'), st=Math.abs(d); const v=Math.min(max,Math.max(st,Math.round(((+el.value||0)+d)/st)*st)); el.value=v; }
-function submitOffer(tripId, again){ const v=+$('#oa').value, t=trip(tripId); if(!(v>0)){ toast('Enter an amount'); return; } if(v>t.price){ toast('Offer is above the listed price. Use the listed price instead.'); return; } sendOffer(tripId,v,again||undefined); }
+function bump(d,max){ const el=$('#oa'), st=Math.abs(d); const v=Math.max(st,Math.round(((+el.value||0)+d)/st)*st); el.value=v; offerHint(max); }
+function offerHint(price){ const v=+(($('#oa')||{}).value)||0, h=$('#ohint'), n=S.offerSeats||1; if(!h) return;
+  const diff=v-price; h.className='ohint '+(diff>0?'tip':diff<0?'low':'');
+  h.textContent=(diff>0?'Includes a '+naira(diff)+' tip for the driver':diff<0?naira(-diff)+' below the listed price':'Same as the listed price')+(n>1?' · Total '+naira(v*n)+' for '+n+' seats':''); }
+function submitOffer(tripId, again){ const v=+$('#oa').value, t=trip(tripId); if(!(v>0)){ toast('Enter an amount'); return; } sendOffer(tripId,v,again||undefined); }
 function submitCounter(id){ const v=+$('#oa').value, i=S.incoming.find(x=>x.id===id), t=trip(i.tripId); if(!(v>0)){ toast('Enter an amount'); return; }
   i.status='countered'; i.counter=v; S.sheet=null; render();
   setTimeout(()=>{ if(i.status==='countered'){ i.status='accepted'; i.amount=v; if(t.seats>0) t.seats--; toast(i.name.split(' ')[0]+' accepted '+naira(v)); } },2200); }
 function saveMe(){ const n=$('#mn').value.trim(); if(!n){ toast('Add your name'); return; } Object.assign(S.user,{name:n,phone:$('#mp').value.trim(),email:$('#me2').value.trim()}); S.sheet=null; render(); toast('Details saved'); }
 function saveEm(){ S.user.em={name:$('#en').value.trim(),phone:$('#ep').value.trim()}; S.sheet=null; render(); toast('Emergency contact saved'); }
 function buyBoost(id){ const t=trip(id), plans=['3 hours','12 hours','24 hours']; t.boosted=true; t.boost=plans[S.plan]; S.sheet=null; render(); toast('Boost is live. You are first in search.'); }
-function submitRate(bid){ const b=S.bookings.find(x=>x.id===bid); if(b) b.rated=true; S.sheet=null; render(); toast('Thanks. Your rating helps other riders.'); }
+function submitRate(bid){ const b=S.bookings.find(x=>x.id===bid); if(b) b.rated=(S.sheet&&S.sheet.stars)||true; S.sheet=null; render(); toast('Thanks. Your rating helps other riders.'); }
 
 /* ---------- shell: header, tabs, render ---------- */
 let lastHdr='', lastTabs='';
@@ -959,16 +984,19 @@ function renderHeader(){
 }
 const TABS = {
   passenger:[['trips','Trips','trips'],['find','Find a ride','find'],['profile','Profile','profile']],
-  driver:[['dTrips','Trips','trips'],['post','Post a trip','post'],['profile','Profile','profile']]
+  driver:[['dTrips','Trips','trips'],['post','Post a trip','post'],['earn','Earnings','wallet'],['profile','Profile','profile']]
 };
 function renderTabs(){
   const sub={req:'dTrips',detail:'find',thread:'trips',confirmed:'trips',track:S.mode==='driver'?'dTrips':'trips'}, cur=sub[S.view]||S.view, n=unread();
-  const h=TABS[S.mode].map(([k,l,icn],idx)=> idx===1
+  const four=TABS[S.mode].length===4;
+  const h=TABS[S.mode].map(([k,l,icn],idx)=> four&&k==='post'
+    ? `<button class="t tpost" ${cur===k?'aria-current="page"':''} onclick="go('${k}')"><span class="pdisc">${ic(icn,18)}</span>${l}</button>`
+    : idx===1&&!four
     ? `<button class="fab" onclick="go('${k}')" ${cur===k?'aria-current="page"':''}><span class="disc">${ic(icn,24)}</span>${l}</button>`
     : `<button class="t" ${cur===k?'aria-current="page"':''} onclick="go('${k}')">${ic(icn,21)}${l}${idx===0&&n&&cur!==k?'<span class="dot" aria-label="New activity"></span>':''}</button>`).join('');
-  if(h!==lastTabs){ $('#tabs').innerHTML=h; lastTabs=h; }
+  if(h!==lastTabs){ $('#tabs').innerHTML=h; lastTabs=h; } $('#tabs').classList.toggle('four',TABS[S.mode].length===4);
 }
-const VIEWS = {req:vReq,find:vFind,detail:vDetail,thread:vThread,confirmed:vConfirmed,trips:vTrips,track:vTrack,profile:vProfile,post:vPost,dTrips:vDTrips};
+const VIEWS = {earn:vEarn,req:vReq,find:vFind,detail:vDetail,thread:vThread,confirmed:vConfirmed,trips:vTrips,track:vTrack,profile:vProfile,post:vPost,dTrips:vDTrips};
 function render(){
   const ph=$('#phone'); ph.dataset.mode=S.mode;  ph.classList.toggle('onb',S.onbOn); ph.classList.toggle('splash',S.onbOn&&S.onb.step==='splash');
   const sc=$('#screen'), top=sc.scrollTop;

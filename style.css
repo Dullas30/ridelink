@@ -557,3 +557,23 @@ body.bare .phone.splash #screen{padding-top:env(safe-area-inset-top)}
 .sp .btn{background:var(--brand);color:#fff}
 .sp .skip{color:var(--muted)}
 .phone.onb #screen{background:#fff}
+
+/* 4-tab driver bar, seat picker, tip hint, earnings */
+nav.tabs.four{grid-template-columns:repeat(4,1fr);align-items:center}
+nav.tabs button.tpost{color:var(--brand)}
+nav.tabs .pdisc{width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;margin-bottom:1px}
+nav.tabs button.tpost[aria-current="page"] .pdisc{box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
+.seatpick{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px}
+.seatpick .stepper{flex:none}
+.seatpick .stepper b{min-width:22px;text-align:center;font-size:17px}
+.seatpick .stepper button:disabled{opacity:.35}
+.ohint{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-top:6px;min-height:16px}
+.ohint.tip{color:var(--good,#16a34a)}
+.ohint.low{color:#b45309}
+.kv .ename{display:block;font-size:13px}
+.kv small{display:block;color:var(--muted);font-size:11.5px;font-weight:500}
+details.bk .pd{padding-top:6px}
+.kv.tot{border-top:1px solid var(--line);margin-top:4px;padding-top:8px}
+.pcode{letter-spacing:2px;font-size:15px}
+details.bk .avatar.sm{width:34px;height:34px;font-size:12px}
+.kv span:has(.ename){text-align:left;flex:1;min-width:0}
