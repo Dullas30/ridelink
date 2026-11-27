@@ -45,6 +45,7 @@ const ICON = {
   eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff:'<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   chev:'<path d="M9 6l6 6-6 6"/>',
+  route:'<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
   locate:'<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/>',
   bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
   bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/>',
@@ -217,7 +218,7 @@ function gmap(sp, tag){
   if(MAPMODE==='svg') return mapBox(ABUJA_ONLY?abujaSVG(sp):mapSVG({routes:sp.ac&&sp.bc&&sp.ac!==sp.bc?[{a:sp.ac,b:sp.bc,sel:true}]:[],car:sp.car}), tag||'Abuja');
   const k=mapKey(sp)+(sp.live?'|live':''); MAPS[k]=Object.assign(MAPS[k]||{},sp);
   const showTag=tag&&!(MAPMODE==='embed'&&!sp.live);
-  return `<div class="map g"><div class="gslot" data-key="${esc(k)}"></div>${showTag?`<span class="maptag">${esc(tag)}</span>`:''}</div>`;
+  return `<div class="map g${sp.live?' live':''}"><div class="gslot" data-key="${esc(k)}"></div>${showTag?`<span class="maptag">${sp.live&&tag==='Live'?'<i class="pulse"></i>':''}${esc(tag)}</span>`:''}</div>`;
 }
 const gmDir=(to,from)=>'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination='+encodeURIComponent(to)+(from?'&origin='+encodeURIComponent(from):'');
 const gmBtn=(label,to,from)=>`<a class="btn ghost gmlink" href="${gmDir(to,from)}" target="_blank" rel="noopener">${ic('pin',16)} ${label}</a>`;
@@ -228,7 +229,7 @@ const GSTYLE=[{elementType:'geometry',stylers:[{color:'#eef2f0'}]},{elementType:
   {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#dde7e2'}]},{featureType:'road.arterial',elementType:'labels',stylers:[{visibility:'simplified'}]},{featureType:'landscape.natural',stylers:[{color:'#e4ede8'}]},{featureType:'water',stylers:[{color:'#cfe2e8'}]},{featureType:'administrative',elementType:'geometry.stroke',stylers:[{color:'#c9d6d0'}]}];
 function gAdapter(el){
   const map=new google.maps.Map(el,{center:{lat:9.07,lng:7.48},zoom:11,disableDefaultUI:true,gestureHandling:'greedy',clickableIcons:false,styles:GSTYLE,backgroundColor:'#eef2f0'});
-  const P=p=>({lat:p.lat,lng:p.lng}); let user,acc,car;
+  const P=p=>({lat:p.lat,lng:p.lng}); let user,acc,car,dn;
   return { view:(ll,z)=>{ map.setCenter(P(ll)); map.setZoom(z); }, fit:pts=>{ const b=new google.maps.LatLngBounds(); pts.forEach(p=>b.extend(P(p))); map.fitBounds(b,36); },
     line:(path,col)=>{ new google.maps.Polyline({map,path:path.map(P),strokeColor:'#ffffff',strokeWeight:9,zIndex:1}); new google.maps.Polyline({map,path:path.map(P),strokeColor:col,strokeWeight:5,zIndex:2}); },
     pin:(ll,fill,col)=>new google.maps.Marker({map,position:P(ll),zIndex:5,icon:{path:google.maps.SymbolPath.CIRCLE,scale:6.5,fillColor:fill,fillOpacity:1,strokeColor:col,strokeWeight:3}}),
@@ -237,13 +238,15 @@ function gAdapter(el){
       else { user.setPosition(P(ll)); acc.setCenter(P(ll)); acc.setRadius(ll.acc||30); } },
     car:(ll,rot,col)=>{ const icon={path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:6,fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2,rotation:rot};
       if(!car) car=new google.maps.Marker({map,position:P(ll),zIndex:8,icon}); else { car.setPosition(P(ll)); car.setIcon(icon); } },
+    done:(path)=>{ if(!dn) dn=new google.maps.Polyline({map,path:[],strokeColor:'#9aa8a2',strokeWeight:5,zIndex:3}); dn.setPath(path.map(P)); },
+    tag:(ll,text,col)=>new google.maps.Marker({map,position:P(ll),zIndex:6,label:{text,color:'#fff',fontSize:'11px',fontWeight:'700'},icon:{path:'M-34,-30 h68 a8,8 0 0 1 8,8 v12 a8,8 0 0 1 -8,8 h-28 l-6,8 l-6,-8 h-28 a8,8 0 0 1 -8,-8 v-12 a8,8 0 0 1 8,-8z',fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2,labelOrigin:new google.maps.Point(0,-16)}}),
     pan:(ll,z)=>{ map.panTo(P(ll)); if(z) map.setZoom(z); }, onDrag:cb=>map.addListener('dragstart',cb), resize:()=>{}, center:()=>{ const c=map.getCenter(); return {lat:c.lat(),lng:c.lng()}; }, onIdle:cb=>map.addListener('idle',cb) };
 }
 function lAdapter(el){
   const map=L.map(el,{zoomControl:false,attributionControl:true,zoomSnap:1}).setView([9.07,7.48],11);
   map.attributionControl.setPrefix(false);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-  const A=p=>[p.lat,p.lng]; let user,acc,car;
+  const A=p=>[p.lat,p.lng]; let user,acc,car,dn;
   const carIcon=(rot,col)=>L.divIcon({className:'lcar',iconSize:[26,26],html:`<svg viewBox="0 0 26 26" style="transform:rotate(${rot}deg)"><path d="M13 2l8 20-8-5-8 5z" fill="${col}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>`});
   return { view:(ll,z)=>map.setView(A(ll),z), fit:pts=>map.fitBounds(pts.map(A),{padding:[28,28]}),
     line:(path,col)=>{ L.polyline(path.map(A),{color:'#fff',weight:9,opacity:1,interactive:false}).addTo(map); L.polyline(path.map(A),{color:col,weight:5,opacity:1,interactive:false}).addTo(map); },
@@ -252,6 +255,8 @@ function lAdapter(el){
         user=L.marker(A(ll),{icon:L.divIcon({className:'udot',iconSize:[20,20],html:'<i></i>'}),interactive:false,zIndexOffset:900}).addTo(map); }
       else { user.setLatLng(A(ll)); acc.setLatLng(A(ll)); acc.setRadius(ll.acc||30); } },
     car:(ll,rot,col)=>{ if(!car) car=L.marker(A(ll),{icon:carIcon(rot,col),interactive:false,zIndexOffset:800}).addTo(map); else { car.setLatLng(A(ll)); car.setIcon(carIcon(rot,col)); } },
+    done:path=>{ if(!dn) dn=L.polyline([],{color:'#9aa8a2',weight:5,opacity:1,interactive:false}).addTo(map); dn.setLatLngs(path.map(A)); },
+    tag:(ll,text,col)=>L.marker(A(ll),{interactive:false,zIndexOffset:700,icon:L.divIcon({className:'ltag',iconSize:null,iconAnchor:[0,0],html:`<span style="background:${col}">${text}</span>`})}).addTo(map),
     pan:(ll,z)=>map.setView(A(ll),z||map.getZoom(),{animate:true}), onDrag:cb=>map.on('dragstart',cb), resize:()=>map.invalidateSize(), center:()=>{ const c=map.getCenter(); return {lat:c.lat,lng:c.lng}; }, onIdle:cb=>map.on('moveend',cb) };
 }
 /* --- places: search, coordinates, address for a GPS point --- */
@@ -328,7 +333,8 @@ async function routePath(A,B,sp){
 function createMap(k){
   const sp=MAPS[k]; if(!sp) return null;
   const el=document.createElement('div'); el.className='gm'; el.innerHTML=`<div class="gmc"></div><button class="mloc" aria-label="Show my location">${ic('locate',18)}</button>`;
-  const m={el,k,follow:false}; el.querySelector('.mloc').onclick=()=>{ if(m.embed){ locateMe(); return; } m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
+  const m={el,k,follow:!!sp.live}; if(sp.live){ el.classList.add('live','following'); const f=document.createElement('button'); f.className='mfit'; f.setAttribute('aria-label','See the whole route'); f.innerHTML=ic('route',18); f.onclick=()=>{ if(m.api&&m.path){ m.follow=false; el.classList.remove('following'); m.api.fit(m.path); } }; el.appendChild(f); }
+  el.querySelector('.mloc').onclick=()=>{ if(m.embed){ locateMe(); return; } if(sp.live&&m.pos&&m.api){ m.follow=true; el.classList.add('following'); m.api.pan(m.pos,15); return; } m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
   if(MAPMODE==='embed'&&!(sp.live&&window.L)){ m.embed=true; el.classList.add('emb');
     const q=x=>encodeURIComponent(x), A=sp.aLL?sp.aLL.lat+','+sp.aLL.lng:sp.a, B=sp.bLL?sp.bLL.lat+','+sp.bLL.lng:sp.b;
     const src=A&&B?`saddr=${q(A)}&daddr=${q(B)}`:A||B?`q=${q(A||B)}&z=${/^[^,]+, (Abuja, )?Nigeria$/.test(A||B)&&cityKey((A||B).split(',')[0])?12:16}`:(S.loc&&S.loc.acc<=1500?`q=${S.loc.lat},${S.loc.lng}&z=15`:'q=Abuja&z=12');
@@ -342,7 +348,8 @@ async function initMap(m){
   const col=brandCol();
   if(S.loc) m.api.user(S.loc);
   const A=sp.aLL||(sp.a&&await geocode(sp.a))||(sp.ac&&LLc(CITIES[sp.ac]))||null, B=sp.bLL||(sp.b&&await geocode(sp.b))||(sp.bc&&LLc(CITIES[sp.bc]))||null;
-  if(A&&B&&llKey(A)!==llKey(B)){ m.api.view(A,10); m.path=await routePath(A,B,sp); m.api.line(m.path,col); m.api.pin(A,'#fff',col); m.api.pin(B,col,col); m.api.fit(m.path); }
+  if(A&&B&&llKey(A)!==llKey(B)){ m.api.view(A,10); m.path=await routePath(A,B,sp); m.api.line(m.path,col); m.api.pin(A,'#fff',col); m.api.pin(B,col,col); m.api.fit(m.path);
+    if(sp.live&&m.api.tag){ m.api.tag(A,'Pickup','#13211c'); m.api.tag(B,'Drop-off',col); } }
   else if(A||B){ const P=A||B; m.api.pin(P,col,col); m.api.view(P,13); }
   else if(S.loc){ m.follow=true; m.el.classList.add('following'); m.api.view(S.loc,15); }
   else m.api.view({lat:9.07,lng:7.48},11);
@@ -370,8 +377,15 @@ function moveCar(m,t){
   const seg=[]; let tot=0; for(let i=1;i<P.length;i++){ const d=Math.hypot(P[i].lat-P[i-1].lat,P[i].lng-P[i-1].lng); seg.push(d); tot+=d; }
   let goal=tot*Math.max(0,Math.min(1,t)), i=0; while(i<seg.length-1&&goal>seg[i]){ goal-=seg[i]; i++; }
   const f=seg[i]?goal/seg[i]:0, a=P[i], b=P[i+1], pos={lat:a.lat+(b.lat-a.lat)*f,lng:a.lng+(b.lng-a.lng)*f};
-  m.api.car(pos,Math.atan2(b.lng-a.lng,b.lat-a.lat)*180/Math.PI,brandCol());
+  m.api.car(pos,Math.atan2(b.lng-a.lng,b.lat-a.lat)*180/Math.PI,brandCol()); m.pos=pos;
+  if(m.api.done) m.api.done(P.slice(0,i+1).concat([pos]));
+  if(m.follow&&m.el.classList.contains('live')){ m.n=(m.n||0)+1; if(m.n===1) m.api.pan(pos,15); else if(m.n%3===0) m.api.pan(pos); }
 }
+/* where along the route a GPS point is (0..1), for following the driver's real phone */
+function routeT(P,ll){ let tot=0,best=1e9,at=0; const segs=[];
+  for(let i=1;i<P.length;i++){ const a=P[i-1],b=P[i],dx=b.lat-a.lat,dy=b.lng-a.lng,L2=dx*dx+dy*dy||1e-12; let f=((ll.lat-a.lat)*dx+(ll.lng-a.lng)*dy)/L2; f=Math.max(0,Math.min(1,f));
+    const d=(a.lat+dx*f-ll.lat)**2+(a.lng+dy*f-ll.lng)**2, len=Math.sqrt(L2); if(d<best){ best=d; at=tot+len*f; } tot+=len; }
+  return tot?at/tot:0; }
 if(MAPMODE==='google'){
   window.__gmReady=()=>{ gReady=true; mapEls.forEach(m=>initMap(m)); };
   window.gm_authFailure=()=>{ resetMaps(window.L?'osm':'svg'); toast('Google Maps did not accept the key. Showing the free map.'); };
@@ -743,34 +757,72 @@ function vTrips(){
   return `<h2>My trips</h2><div class="tabs2" role="tablist" style="margin-top:8px"><button role="tab" aria-selected="${act}" onclick="S.ptab='up';render()">Active</button><button role="tab" aria-selected="${!act}" onclick="S.ptab='past';render()">Past</button></div>${body}`;
 }
 /* ---------- tracking (both modes) ---------- */
-function startTrack(tripId, role, bid){ stopTrack(); const tr=trip(tripId); tr.live=true; S.track={tripId,role,bid,t:tr.prog||0,arrived:false,picked:[],timer:null}; go('track'); S.track.timer=setInterval(tick,300); }
+function startTrack(tripId, role, bid){ stopTrack(); const tr=trip(tripId); tr.live=true;
+  S.track={tripId,role,bid,t:tr.prog||0,arrived:false,picked:[],timer:null,hold:0,stage:-1,area:'',gps:false,log:[],start:Date.now()};
+  logT((role==='driver'?'You started the trip':'Trip started'));
+  go('track'); S.track.timer=setInterval(tick,300); }
 function stopTrack(){ if(S.track&&S.track.timer){ clearInterval(S.track.timer); S.track.timer=null; } }
+const clock=d=>d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+function logT(text){ const T=S.track; if(!T) return; T.log.unshift({at:clock(new Date()),text}); T.log=T.log.slice(0,8); }
+const STAGES=['Pickup','On the way','Almost there','Arrived'];
+const stageOf=t=>t>=1?3:t>=0.88?2:t>=0.1?1:0;
 const etaText = () => { const T=S.track,t=trip(T.tripId); const m=Math.round((1-T.t)*tMins(t)); return T.arrived?'Arrived':(m<=1?'Arriving now':dur(m)+' left'); };
-function tick(){ const T=S.track; if(!T||S.view!=='track'){ stopTrack(); return; } T.t=Math.min(1,T.t+0.012); trip(T.tripId).prog=T.t;
-  if(MAPMODE==='svg'){ const w=$('#mapwrap'); if(w) w.innerHTML=trackMap(); } else { const m=mapEls.get(mapKey(tripPlaces(trip(T.tripId)))+'|live'); if(m&&m.map) moveCar(m,T.t); } const e=$('#eta'); if(e) e.textContent=etaText(); const b=$('#prog'); if(b) b.style.width=(T.t*100)+'%';
+function liveHead(){ const T=S.track,t=trip(T.tripId),drv=T.role==='driver',dn=esc(t.driver.split(' ')[0]),to=esc(t.to.split(' · ').pop()),from=esc(t.from.split(' · ').pop()),st=T.arrived?3:stageOf(T.t), atPick=T.t>=0.06&&T.t<0.1;
+  const h = T.arrived ? (drv?'Trip finished':'You have arrived at '+to)
+    : st===0 ? (atPick?(drv?'You are at the pickup in '+from:dn+' is at the pickup. Show your code.'):(drv?'Head to the pickup in '+from:dn+' is coming to pick you up'))
+    : st===1 ? (drv?'Driving to '+to:'On the way to '+to) : (drv?'Almost at '+to:'Almost at '+to);
+  return `<div class="lhead">${h}</div><div class="steps">${STAGES.map((n,i)=>`<div class="st ${i<st?'done':i===st?'now':''}"><i></i><span>${n}</span></div>`).join('')}</div>`; }
+function liveStats(){ const T=S.track,t=trip(T.tripId), left=Math.max(0,(1-T.t)*tKm(t)), mins=Math.round((1-T.t)*tMins(t));
+  const at=T.arrived?'Arrived':clock(new Date(Date.now()+mins*60000)), now=T.arrived?esc(t.to.split(' · ').pop()):(T.area||'On route').replace(/^Near /,'');
+  return `<div><b>${at}</b><span>${T.arrived?'Status':'Arrive by'}</span></div><div><b>${left<1?Math.round(left*1000)+' m':left.toFixed(1)+' km'}</b><span>Left to go</span></div><div><b>${esc(now)}</b><span>${T.arrived?'At':'Now near'}</span></div>`; }
+const liveLog=()=>S.track.log.slice(0,5).map(e=>`<div class="ev"><span>${e.at}</span><p>${esc(e.text)}</p></div>`).join('');
+function liveUpdate(){ const T=S.track; const set=(id,h)=>{ const e=$(id); if(e&&e.innerHTML!==h) e.innerHTML=h; };
+  set('#lhead',liveHead()); set('#lstats',liveStats()); set('#tlog',liveLog());
+  const pc=$('#pcode'); if(pc&&T.t>=0.1) pc.remove(); const e=$('#eta'); if(e) e.textContent=etaText(); const b=$('#prog'); if(b) b.style.width=(T.t*100)+'%'; }
+function carPos(){ const T=S.track,t=trip(T.tripId),sp=tripPlaces(t),m=mapEls.get(mapKey(sp)+'|live');
+  if(m&&m.pos) return m.pos; const A=sp.aLL,B=sp.bLL; return A&&B?{lat:A.lat+(B.lat-A.lat)*T.t,lng:A.lng+(B.lng-A.lng)*T.t}:null; }
+function tick(){ const T=S.track; if(!T||S.view!=='track'){ stopTrack(); return; } const t=trip(T.tripId), m=mapEls.get(mapKey(tripPlaces(t))+'|live');
+  if(T.gps&&S.loc&&m&&m.path) T.t=Math.max(T.t,Math.min(1,routeT(m.path,S.loc)));
+  else if(T.t>=0.06&&T.t<0.1&&T.hold<12) T.hold++;            /* wait a moment at the pickup */
+  else T.t=Math.min(1,T.t+(T.t<0.1?0.008:0.006));
+  t.prog=T.t;
+  if(MAPMODE==='svg'){ const w=$('#mapwrap'); if(w) w.innerHTML=trackMap(); } else if(m&&m.api) moveCar(m,T.t);
+  const st=stageOf(T.t), drv=T.role==='driver', dn=t.driver.split(' ')[0];
+  if(T.t>=0.06&&!T.atPick){ T.atPick=true; logT(drv?'You arrived at the pickup':dn+' arrived at the pickup'); }
+  if(st!==T.stage){ if(st===1) logT(drv?'Passengers picked up. Trip is on':'You were picked up'); if(st===2) logT('Almost at '+t.to.split(' · ').pop()); T.stage=st; }
+  const p=carPos(), ar=p?nearArea(p):''; if(ar&&ar!==T.area){ if(T.area&&st>=1) logT('Passed '+T.area.replace(/^Near /,'')); T.area=ar; }
+  liveUpdate();
   if(T.t>=1){ stopTrack(); arrive(); } }
-function arrive(){ const T=S.track; T.t=1; T.arrived=true; const t=trip(T.tripId); t.live=false; t.prog=0;
+function useGps(on){ const T=S.track; T.gps=on; if(on){ startLoc(true); toast('Following your phone’s GPS'); } render(); }
+function arrive(){ const T=S.track; T.t=1; T.arrived=true; logT('Arrived at '+trip(T.tripId).to.split(' · ').pop()); const t=trip(T.tripId); t.live=false; t.prog=0;
   if(T.role==='passenger'){ const b=S.bookings.find(x=>x.id===T.bid); if(b) b.status='completed'; S.sheet={type:'rate',bid:T.bid,stars:0}; }
   else { t.past=true; t.fin=Date.now(); t.earned=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').reduce((s,i)=>s+i.amount,0); t.pax=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted').map(i=>({name:i.name,amount:i.amount})); t.riders=t.pax.length; t.when=t.when.replace(/^\w+/,'Today'); ['today','week','month','all'].forEach(k=>S.earn[k]+=t.earned); S.dtab='past'; toast('Trip complete. '+naira(t.earned)+' is on its way to you.'); }
   render(); }
 const trackMap = () => { const T=S.track,t=trip(T.tripId); return gmap(Object.assign(tripPlaces(t),{car:T.t,live:true}),T.arrived?'Trip finished':'Live'); };
 function vTrack(){
   const T=S.track; if(!T) return vTrips(); const t=trip(T.tripId), drv=T.role==='driver';
-  const riders=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted');
+  const riders=S.incoming.filter(i=>i.tripId===t.id&&i.status==='accepted'), code=(S.bookings.find(b=>b.id===T.bid)||{code:'0000'}).code;
+  const who = drv ? `<div class="avatar">${ic('car',18)}</div><div class="grow"><div class="name">${esc(S.user.veh.make+' '+S.user.veh.model)}</div><div class="meta">${esc(S.user.veh.plate)} · ${riders.length} passenger${riders.length===1?'':'s'}</div></div>`
+    : `<div class="avatar">${initials(t.driver)}</div><div class="grow"><div class="name">${esc(t.driver)} <span class="meta">★ ${t.rating}</span></div><div class="meta">${esc(t.car)}</div></div><button class="ibtn" aria-label="Call driver" onclick="toast('Demo: this would call ${esc(t.driver.split(' ')[0])}')">${ic('phone',18)}</button><button class="ibtn" aria-label="Message driver" onclick="toast('Demo: chat opens here')">${ic('chat',18)}</button>`;
   return `${backBtn(drv?'dTrips':'trips')}
-  <div id="mapwrap">${trackMap()}</div><div>
-  <div class="card"><div class="row between"><div class="name">${routeLabel(t)}</div><span class="chip ${T.arrived?'':'good'}" id="eta">${etaText()}</span></div>
+  <div id="mapwrap">${trackMap()}</div>
+  <div class="card live">
+    <div class="row between"><div id="lhead-wrap" class="grow"><div id="lhead">${liveHead()}</div></div></div>
+    <div class="lstats" id="lstats">${liveStats()}</div>
     <div class="prog"><i id="prog" style="width:${T.t*100}%"></i></div>
-    <div class="meta">${drv?esc(S.user.veh.make+' '+S.user.veh.model+' · '+S.user.veh.plate):esc(t.driver)+' · '+esc(t.car)}</div></div>
-  ${drv?`<h3>Passengers (${riders.length})</h3>${riders.map(r=>`<div class="card row between"><div class="row"><div class="avatar">${initials(r.name)}</div><div class="name">${esc(r.name)}</div></div><button class="chip" aria-pressed="${T.picked.includes(r.id)}" onclick="togglePick(${r.id},this)">${T.picked.includes(r.id)?'Picked up':'Mark picked up'}</button></div>`).join('')||'<div class="note">No passengers booked.</div>'}
+    <div class="row between" style="margin-top:6px"><span class="meta">${routeLabel(t)}</span><span class="chip ${T.arrived?'':'good'}" id="eta">${etaText()}</span></div>
+  </div>
+  <div class="card row" style="gap:10px">${who}</div>
+  ${drv?`<h3>Passengers (${riders.length})</h3>${riders.map(r=>`<div class="card row between"><div class="row"><div class="avatar">${initials(r.name)}</div><div><div class="name">${esc(r.name)}</div><div class="meta">${esc(r.pickup||'')}${(r.seats||1)>1?' · '+r.seats+' seats':''}</div></div></div><button class="chip" aria-pressed="${T.picked.includes(r.id)}" onclick="togglePick(${r.id},this)">${T.picked.includes(r.id)?'Picked up':'Mark picked up'}</button></div>`).join('')||'<div class="note">No passengers booked on this trip.</div>'}
+    <div class="card row between gpsrow"><div><div class="name">Use my phone’s GPS</div><div class="meta">Passengers see where you really are</div></div><button class="switch" aria-pressed="${T.gps}" aria-label="Use my phone GPS" onclick="useGps(${!T.gps})"><i></i></button></div>
     <div class="btns">${gmBtn('Navigate with Google Maps',tripPlaces(t).b,tripPlaces(t).a)}</div>
     <button class="btn" style="margin-top:10px" ${T.arrived?'disabled':''} onclick="stopTrack();arrive()">End trip</button>`
-  :`<div class="label" style="text-align:center">Pickup code</div><div class="code">${(S.bookings.find(b=>b.id===T.bid)||{code:'0000'}).code.split('').join(' ')}</div>
+  :`${T.t<0.1&&!T.arrived?`<div id="pcode"><div class="label" style="text-align:center">Pickup code</div><div class="code">${code.split('').join(' ')}</div></div>`:''}
     <div class="btns"><button class="btn ghost" onclick="toast('Demo: a live link would be copied to your clipboard')">${ic('share',16)} Share trip</button><button class="btn bad" onclick="S.sheet={type:'sos'};render()">${ic('sos',16)} SOS</button></div>
-    <div class="btns"><button class="btn ghost" onclick="toast('Demo: chat opens here')">${ic('chat',16)} Message driver</button>${T.arrived||!S.demo?'':'<button class="btn ghost" onclick="stopTrack();arrive()">Skip to arrival</button>'}</div>`}
-  </div>`;
+    ${T.arrived||!S.demo?'':'<div class="btns"><button class="btn ghost" onclick="stopTrack();arrive()">Skip to arrival</button></div>'}`}
+  <h3>Trip updates</h3><div class="card tlog" id="tlog">${liveLog()}</div>`;
 }
-function togglePick(id,el){ const p=S.track.picked, i=p.indexOf(id); i>=0?p.splice(i,1):p.push(id); el.setAttribute('aria-pressed',i<0); el.textContent=i<0?'Picked up':'Mark picked up'; }
+function togglePick(id,el){ const p=S.track.picked, i=p.indexOf(id); i>=0?p.splice(i,1):p.push(id); const r=S.incoming.find(x=>x.id===id); if(i<0&&r){ logT('Picked up '+r.name.split(' ')[0]); liveUpdate(); } el.setAttribute('aria-pressed',i<0); el.textContent=i<0?'Picked up':'Mark picked up'; }
 
 /* ---------- driver views ---------- */
 
