@@ -891,14 +891,13 @@ function earnCard(t){
   return `<details class="card past ec"><summary>
       <div class="grow"><div class="name">${routeLabel(t)}</div><div class="meta">${esc(t.when)}</div>
         <div class="row" style="gap:8px;margin-top:6px"><span class="stack">${stack}</span><span class="meta">${n} passenger${n===1?'':'s'}${t.rated?' · ★ '+t.rated:''}</span></div></div>
-      <div class="eamt"><b>${m(tot)}</b><span class="chip ${t.paidOut?'good':'promo'}">${t.paidOut?'Paid out':'Pending'}</span></div><span class="chev">${ic('chev',16)}</span></summary>
+      <div class="eamt"><b>${m(tot)}</b></div><span class="chev">${ic('chev',16)}</span></summary>
     <div class="pd"><div class="route"><div>${esc(t.from)}<small>${esc(t.when)}</small></div><div>${esc(t.to)}</div></div>
       <div class="kv"><span>Distance</span><b>≈ ${Math.round(tKm(t))} km · ${dur(tMins(t))}</b></div>
       <div class="kv"><span>Listed price</span><b>${naira(t.price)} per seat</b></div>
       <div class="kv"><span>Seats filled</span><b>${t.cap-t.seats} of ${t.cap}</b></div>
       <div class="label" style="margin:10px 0 2px">What each passenger paid</div>${pax.map(pr).join('')||'<div class="meta">No passengers on this trip.</div>'}
-      <div class="kv tot"><span>You earned</span><b>${m(tot)}</b></div>
-      <div class="note" style="margin-top:8px">${ic('bank',14)} ${t.paidOut?'Paid to '+esc(S.user.bank)+' on '+esc(t.paidOut):'Goes to '+esc(S.user.bank)+' next Monday'}</div></div></details>`;
+      <div class="kv tot"><span>You earned</span><b>${m(tot)}</b></div></div></details>`;
 }
 function vEarn(){
   const done=myTrips().filter(t=>t.past).sort((a,b)=>(b.fin||0)-(a.fin||0)), pax=done.reduce((x,t)=>x+(t.pax||[]).length,0);
