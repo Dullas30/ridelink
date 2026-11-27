@@ -1,8 +1,8 @@
 /* RideLink settings
-   GOOGLE_MAPS_API_KEY: leave empty to use the free Google Maps embed (route view, no setup).
-   Paste a key to switch on the full interactive map: road route drawn in our colours and the moving car while tracking.
-   Key setup: Google Cloud console > APIs & Services > enable "Maps JavaScript API" and "Routes API",
-   then restrict the key to your website address. */
+   MAPBOX_TOKEN: paste your Mapbox PUBLIC token here (it starts with "pk.").
+     Get it at account.mapbox.com > Tokens. Add a URL restriction for https://ridelinkkk.vercel.app
+     so nobody else can use it. Never put a secret "sk." token here.
+   Leave it empty and the app uses the free fallback map, so nothing breaks. */
 window.RIDELINK_CONFIG = {
-  GOOGLE_MAPS_API_KEY: ''
+  MAPBOX_TOKEN: ''
 };

@@ -200,8 +200,9 @@ const mapBox = (inner, tag='Map preview') => `<div class="map"><div id="mapbox">
    'svg'    : the drawn preview above, used only where a page may not load map tiles (for example the shared preview link).
    Your position comes from the phone's GPS and updates as you move (the pulsing dot). Maps sit in #maplayer and are moved
    over their slot after each render, so they never reload when the screen redraws. */
-const CFG=window.RIDELINK_CONFIG||{}, GKEY=String(CFG.GOOGLE_MAPS_API_KEY||'').trim();
-let MAPMODE=GKEY?'google':'embed', gReady=false;  /* embed = free Google map, no key */
+const CFG=window.RIDELINK_CONFIG||{}, GKEY=String(CFG.GOOGLE_MAPS_API_KEY||'').trim(), MBX=String(CFG.MAPBOX_TOKEN||'').trim();
+let MAPMODE=MBX?'mapbox':GKEY?'google':'embed', gReady=false;  /* mapbox = main map; embed = free fallback with no key */
+const MB='https://api.mapbox.com', mbq=()=>'access_token='+encodeURIComponent(MBX), FCT_BBOX='6.70,8.40,7.90,9.60';
 const MAPS={}, mapEls=new Map(), geoCache={};
 const NG_BBOX='2.6,4.2,14.7,13.9';
 const LLc=c=>({lat:c.lat,lng:c.lon});
@@ -242,6 +243,30 @@ function gAdapter(el){
     tag:(ll,text,col)=>new google.maps.Marker({map,position:P(ll),zIndex:6,label:{text,color:'#fff',fontSize:'11px',fontWeight:'700'},icon:{path:'M-34,-30 h68 a8,8 0 0 1 8,8 v12 a8,8 0 0 1 -8,8 h-28 l-6,8 l-6,-8 h-28 a8,8 0 0 1 -8,-8 v-12 a8,8 0 0 1 8,-8z',fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2,labelOrigin:new google.maps.Point(0,-16)}}),
     pan:(ll,z)=>{ map.panTo(P(ll)); if(z) map.setZoom(z); }, onDrag:cb=>map.addListener('dragstart',cb), resize:()=>{}, center:()=>{ const c=map.getCenter(); return {lat:c.lat(),lng:c.lng()}; }, onIdle:cb=>map.addListener('idle',cb) };
 }
+const mkAdapter=el=>MAPMODE==='mapbox'&&gReady?mAdapter(el):MAPMODE==='google'&&gReady?gAdapter(el):lAdapter(el);
+/* Mapbox GL adapter: same small interface as the others */
+function mAdapter(el){
+  const map=new mapboxgl.Map({container:el,style:'mapbox://styles/mapbox/streets-v12',center:[7.48,9.07],zoom:11,attributionControl:false,pitchWithRotate:false,dragRotate:false,touchPitch:false,maxBounds:[[5.9,8.0],[8.7,10.0]]});
+  map.addControl(new mapboxgl.AttributionControl({compact:true}),'bottom-left'); map.touchZoomRotate.disableRotation();
+  const A=p=>[p.lng,p.lat], q=[]; let ready=false, n=0, user,acc,car,carEl;
+  map.on('load',()=>{ ready=true; q.splice(0).forEach(f=>f()); });
+  const when=f=>ready?f():q.push(f);
+  const geo=path=>({type:'Feature',geometry:{type:'LineString',coordinates:path.map(A)}});
+  const dot=(cls,css)=>{ const d=document.createElement('div'); d.className=cls; if(css) d.style.cssText=css; return d; };
+  const mk=(e,ll,anchor)=>new mapboxgl.Marker({element:e,anchor:anchor||'center'}).setLngLat(A(ll)).addTo(map);
+  const lineLayer=(id,col,w,data)=>{ map.addSource(id,{type:'geojson',data}); map.addLayer({id,type:'line',source:id,layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':col,'line-width':w}}); };
+  return { view:(ll,z)=>map.jumpTo({center:A(ll),zoom:z}),
+    fit:pts=>{ const b=new mapboxgl.LngLatBounds(); pts.forEach(p=>b.extend(A(p))); map.fitBounds(b,{padding:40,duration:0,maxZoom:16}); },
+    line:(path,col)=>when(()=>{ const id='r'+(n++); lineLayer(id+'w','#ffffff',9,geo(path)); lineLayer(id,col,5,geo(path)); }),
+    done:path=>when(()=>{ const src=map.getSource('done'); if(src) src.setData(geo(path)); else lineLayer('done','#9aa8a2',5,geo(path)); }),
+    pin:(ll,fill,col)=>mk(dot('mpin',`background:${fill};border-color:${col}`),ll),
+    tag:(ll,text,col)=>{ const e=dot('mtag'); e.innerHTML=`<span style="background:${col};--tc:${col}">${text}</span>`; return mk(e,ll,'bottom'); },
+    user:ll=>{ if(!user){ acc=mk(dot('macc'),ll); user=mk(dot('udot'),ll); user.getElement().innerHTML='<i></i>'; } user.setLngLat(A(ll)); acc.setLngLat(A(ll));
+      const px=(ll.acc||30)/(156543.03*Math.cos(ll.lat*Math.PI/180)/Math.pow(2,map.getZoom())); acc.getElement().style.width=acc.getElement().style.height=Math.min(400,Math.max(14,px*2))+'px'; },
+    car:(ll,rot,col)=>{ if(!car){ carEl=dot('mcar'); car=mk(carEl,ll); } car.setLngLat(A(ll)); carEl.innerHTML=`<svg viewBox="0 0 26 26" style="transform:rotate(${rot}deg)"><path d="M13 2l8 20-8-5-8 5z" fill="${col}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>`; },
+    pan:(ll,z)=>map.easeTo({center:A(ll),zoom:z||map.getZoom(),duration:600}), onDrag:cb=>map.on('dragstart',cb), resize:()=>map.resize(),
+    center:()=>{ const c=map.getCenter(); return {lat:c.lat,lng:c.lng}; }, onIdle:cb=>map.on('moveend',cb) };
+}
 function lAdapter(el){
   const map=L.map(el,{zoomControl:false,attributionControl:true,zoomSnap:1}).setView([9.07,7.48],11);
   map.attributionControl.setPrefix(false);
@@ -256,20 +281,26 @@ function lAdapter(el){
       else { user.setLatLng(A(ll)); acc.setLatLng(A(ll)); acc.setRadius(ll.acc||30); } },
     car:(ll,rot,col)=>{ if(!car) car=L.marker(A(ll),{icon:carIcon(rot,col),interactive:false,zIndexOffset:800}).addTo(map); else { car.setLatLng(A(ll)); car.setIcon(carIcon(rot,col)); } },
     done:path=>{ if(!dn) dn=L.polyline([],{color:'#9aa8a2',weight:5,opacity:1,interactive:false}).addTo(map); dn.setLatLngs(path.map(A)); },
-    tag:(ll,text,col)=>L.marker(A(ll),{interactive:false,zIndexOffset:700,icon:L.divIcon({className:'ltag',iconSize:null,iconAnchor:[0,0],html:`<span style="background:${col}">${text}</span>`})}).addTo(map),
+    tag:(ll,text,col)=>L.marker(A(ll),{interactive:false,zIndexOffset:700,icon:L.divIcon({className:'ltag',iconSize:null,iconAnchor:[0,0],html:`<span style="background:${col};--tc:${col}">${text}</span>`})}).addTo(map),
     pan:(ll,z)=>map.setView(A(ll),z||map.getZoom(),{animate:true}), onDrag:cb=>map.on('dragstart',cb), resize:()=>map.invalidateSize(), center:()=>{ const c=map.getCenter(); return {lat:c.lat,lng:c.lng}; }, onIdle:cb=>map.on('moveend',cb) };
 }
 /* --- places: search, coordinates, address for a GPS point --- */
 async function geocode(q){
   if(!q) return null; if(q in geoCache) return geoCache[q]; let r=null;
-  try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({address:q,region:'ng'}); const l=res.results[0].geometry.location; r={lat:l.lat(),lng:l.lng()}; }
-    else { const qq=encodeURIComponent(q.replace(/, Nigeria$/,'')); for(const bb of ABUJA_ONLY?['6.70,8.40,7.90,9.60']:['6.70,8.40,7.90,9.60',NG_BBOX]){
+  try{ if(MAPMODE==='mapbox'){ const j=await (await fetch(`${MB}/search/geocode/v6/forward?q=${encodeURIComponent(q.replace(/, Nigeria$/,''))}&country=ng&bbox=${FCT_BBOX}&proximity=7.48,9.07&limit=1&${mbq()}`)).json(); const f=j.features&&j.features[0]; if(f) r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; }
+    if(!r&&MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({address:q,region:'ng'}); const l=res.results[0].geometry.location; r={lat:l.lat(),lng:l.lng()}; }
+    else if(!r){ const qq=encodeURIComponent(q.replace(/, Nigeria$/,'')); for(const bb of ABUJA_ONLY?['6.70,8.40,7.90,9.60']:['6.70,8.40,7.90,9.60',NG_BBOX]){
         const j=await (await fetch('https://photon.komoot.io/api/?limit=1&lang=en&lat=9.06&lon=7.49&bbox='+bb+'&q='+qq)).json(); const f=j.features&&j.features[0];
         if(f){ r={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}; break; } } } }catch(e){}
   return geoCache[q]=r;
 }
+async function mbReverse(ll){ const j=await (await fetch(`${MB}/search/geocode/v6/reverse?longitude=${ll.lng}&latitude=${ll.lat}&limit=1&${mbq()}`)).json();
+  const f=j.features&&j.features[0]; if(!f) return null; const p=f.properties||{}, c=p.context||{}, nb=(c.neighborhood||c.locality||{}).name, pl=(c.place||{}).name;
+  const street=p.feature_type==='address'||p.feature_type==='street'?p.name:(c.street||{}).name||(c.address||{}).name;
+  return {street,area:nb||(c.district||{}).name,city:pl,label:[street,nb].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', ')||p.name}; }
 async function reverseStreet(ll){
-  try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
+  try{ if(MAPMODE==='mapbox'){ const r=await mbReverse(ll); if(r&&r.label) return {label:r.label,city:cityOf([r.city],ll)}; }
+    if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
       const g=t=>(r.address_components.find(c=>c.types.includes(t))||{}).long_name;
       return {label:[g('street_number')&&g('route')?g('street_number')+' '+g('route'):g('route')||g('premise'),g('neighborhood')||g('sublocality')].filter(Boolean).join(', ')||r.formatted_address.split(',').slice(0,2).join(','),city:cityOf([g('locality'),g('administrative_area_level_1')],ll)}; }
     const j=await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=${ll.lat}&lon=${ll.lng}`)).json(); const a=j.address||{};
@@ -278,7 +309,8 @@ async function reverseStreet(ll){
   }catch(e){ return {label:nearArea(ll)||'Pinned spot',city:CITIES[nearestCity(ll)].n}; }
 }
 async function reverse(ll){
-  try{ if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
+  try{ if(MAPMODE==='mapbox'){ const r=await mbReverse(ll); if(r&&(r.area||r.street)) return {label:[r.area||r.street,r.city].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),city:cityOf([r.city],ll)}; }
+    if(MAPMODE==='google'){ const res=await new google.maps.Geocoder().geocode({location:{lat:ll.lat,lng:ll.lng}}); const r=res.results[0];
       const g=t=>(r.address_components.find(c=>c.types.includes(t))||{}).long_name; const area=g('neighborhood')||g('sublocality')||g('route')||g('locality');
       return {label:[area,g('locality')].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', '),city:cityOf([g('locality'),g('administrative_area_level_1')],ll)}; }
     const j=await (await fetch(`https://photon.komoot.io/reverse?lang=en&lat=${ll.lat}&lon=${ll.lng}`)).json(); const p=(j.features&&j.features[0]||{}).properties||{};
@@ -293,6 +325,11 @@ const localSugg=q=>{ q=q.trim().toLowerCase(); const seen=new Set(), out=[];
 async function suggest(q){
   if(q.trim().length<2) return localSugg(q);
   try{
+    if(MAPMODE==='mapbox'){ const near=S.loc&&S.loc.acc<1500?`${S.loc.lng},${S.loc.lat}`:'7.48,9.07';
+      const j=await (await fetch(`${MB}/search/geocode/v6/forward?q=${encodeURIComponent(q)}&country=ng&bbox=${FCT_BBOX}&proximity=${near}&autocomplete=true&limit=6&language=en&${mbq()}`)).json();
+      const l=(j.features||[]).map(f=>{ const p=f.properties||{}, ll={lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]};
+        return {label:p.name,sub:p.place_formatted||'',ll,city:cityOf([(p.context&&p.context.place||{}).name,(p.context&&p.context.region||{}).name],ll)}; }).filter(x=>x.label);
+      if(l.length) return l; }
     if(MAPMODE==='google'){ const {AutocompleteSuggestion}=await google.maps.importLibrary('places');
       const {suggestions}=await AutocompleteSuggestion.fetchAutocompleteSuggestions({input:q,includedRegionCodes:['ng'],...(S.loc?{origin:{lat:S.loc.lat,lng:S.loc.lng}}:{})});
       const l=suggestions.filter(s=>s.placePrediction).slice(0,6).map(s=>({label:s.placePrediction.mainText.text,sub:s.placePrediction.secondaryText?s.placePrediction.secondaryText.text:'',pred:s.placePrediction}));
@@ -322,6 +359,8 @@ async function resolveSugg(s){
 /* --- route: real roads when we can, a straight line otherwise --- */
 async function routePath(A,B,sp){
   try{
+    if(MAPMODE==='mapbox'){ const j=await (await fetch(`${MB}/directions/v5/mapbox/driving-traffic/${A.lng},${A.lat};${B.lng},${B.lat}?geometries=geojson&overview=full&${mbq()}`)).json();
+      const r=j.routes&&j.routes[0]; if(r&&r.geometry.coordinates.length>1){ if(sp) sp.real={km:r.distance/1000,mins:r.duration/60}; return r.geometry.coordinates.map(([lng,lat])=>({lat,lng})); } }
     if(MAPMODE==='google'){ const {Route}=await google.maps.importLibrary('routes');
       const {routes}=await Route.computeRoutes({origin:A,destination:B,travelMode:'DRIVING',fields:['path']});
       const r=routes&&routes[0]; if(r&&r.path&&r.path.length>1) return r.path.map(p=>({lat:typeof p.lat==='function'?p.lat():p.lat,lng:typeof p.lng==='function'?p.lng():p.lng})); }
@@ -335,7 +374,7 @@ function createMap(k){
   const el=document.createElement('div'); el.className='gm'; el.innerHTML=`<div class="gmc"></div><button class="mloc" aria-label="Show my location">${ic('locate',18)}</button>`;
   const m={el,k,follow:!!sp.live}; if(sp.live){ el.classList.add('live','following'); const f=document.createElement('button'); f.className='mfit'; f.setAttribute('aria-label','See the whole route'); f.innerHTML=ic('route',18); f.onclick=()=>{ if(m.api&&m.path){ m.follow=false; el.classList.remove('following'); m.api.fit(m.path); } }; el.appendChild(f); }
   el.querySelector('.mloc').onclick=()=>{ if(m.embed){ locateMe(); return; } if(sp.live&&m.pos&&m.api){ m.follow=true; el.classList.add('following'); m.api.pan(m.pos,15); return; } m.follow=true; el.classList.add('following'); if(S.loc&&m.api) m.api.pan(S.loc,15); else startLoc(true); };
-  if(MAPMODE==='embed'&&!(sp.live&&window.L)){ m.embed=true; el.classList.add('emb');
+  if((MAPMODE==='embed'||(MAPMODE==='mapbox'&&!window.mapboxgl&&!window.L))&&!(sp.live&&window.L)){ m.embed=true; el.classList.add('emb');
     const q=x=>encodeURIComponent(x), A=sp.aLL?sp.aLL.lat+','+sp.aLL.lng:sp.a, B=sp.bLL?sp.bLL.lat+','+sp.bLL.lng:sp.b;
     const src=A&&B?`saddr=${q(A)}&daddr=${q(B)}`:A||B?`q=${q(A||B)}&z=${/^[^,]+, (Abuja, )?Nigeria$/.test(A||B)&&cityKey((A||B).split(',')[0])?12:16}`:(S.loc&&S.loc.acc<=1500?`q=${S.loc.lat},${S.loc.lng}&z=15`:'q=Abuja&z=12');
     el.querySelector('.gmc').innerHTML=`<iframe title="Google Map" loading="eager" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?${src}&hl=en&output=embed"></iframe>`; }
@@ -343,7 +382,7 @@ function createMap(k){
 }
 async function initMap(m){
   if(m.api) return; const sp=MAPS[m.k], host=m.el.querySelector('.gmc');
-  m.api=MAPMODE==='google'?gAdapter(host):lAdapter(host); m.api.onDrag(()=>{ m.follow=false; m.el.classList.remove('following'); });
+  m.api=mkAdapter(host); m.api.onDrag(()=>{ m.follow=false; m.el.classList.remove('following'); });
   requestAnimationFrame(()=>m.api.resize());
   const col=brandCol();
   if(S.loc) m.api.user(S.loc);
@@ -371,7 +410,7 @@ function syncMaps(){
   });
 }
 function resetMaps(mode){ MAPMODE=mode; mapEls.forEach(m=>m.el.remove()); mapEls.clear(); render(); }
-document.addEventListener('securitypolicyviolation',e=>{ if(MAPMODE!=='svg'&&/google|cartocdn|openstreetmap|komoot|osrm/i.test(e.blockedURI||'')) resetMaps('svg'); });
+document.addEventListener('securitypolicyviolation',e=>{ if(MAPMODE!=='svg'&&/google|cartocdn|openstreetmap|komoot|osrm|mapbox/i.test(e.blockedURI||'')) resetMaps('svg'); });
 function moveCar(m,t){
   const P=m.path; if(!m.api||!P||P.length<2) return;
   const seg=[]; let tot=0; for(let i=1;i<P.length;i++){ const d=Math.hypot(P[i].lat-P[i-1].lat,P[i].lng-P[i-1].lng); seg.push(d); tot+=d; }
@@ -386,6 +425,14 @@ function routeT(P,ll){ let tot=0,best=1e9,at=0; const segs=[];
   for(let i=1;i<P.length;i++){ const a=P[i-1],b=P[i],dx=b.lat-a.lat,dy=b.lng-a.lng,L2=dx*dx+dy*dy||1e-12; let f=((ll.lat-a.lat)*dx+(ll.lng-a.lng)*dy)/L2; f=Math.max(0,Math.min(1,f));
     const d=(a.lat+dx*f-ll.lat)**2+(a.lng+dy*f-ll.lng)**2, len=Math.sqrt(L2); if(d<best){ best=d; at=tot+len*f; } tot+=len; }
   return tot?at/tot:0; }
+if(MAPMODE==='mapbox'){
+  const css=document.createElement('link'); css.rel='stylesheet'; css.href='https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css'; document.head.appendChild(css);
+  const g=document.createElement('script'); g.src='https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js';
+  g.onload=()=>{ if(!window.mapboxgl||!mapboxgl.supported||!mapboxgl.supported()){ resetMaps('embed'); return; } mapboxgl.accessToken=MBX; gReady=true; mapEls.forEach(m=>{ m.el.remove(); }); mapEls.clear(); render(); };
+  g.onerror=()=>resetMaps('embed'); document.head.appendChild(g);
+  /* a wrong or blocked token: fall back to the free map instead of a broken one */
+  fetch(MB+'/styles/v1/mapbox/streets-v12?'+mbq()).then(r=>{ if(r.status===401||r.status===403){ resetMaps('embed'); toast('Mapbox did not accept the token. Showing the free map.'); } }).catch(()=>{});
+}
 if(MAPMODE==='google'){
   window.__gmReady=()=>{ gReady=true; mapEls.forEach(m=>initMap(m)); };
   window.gm_authFailure=()=>{ resetMaps(window.L?'osm':'svg'); toast('Google Maps did not accept the key. Showing the free map.'); };
@@ -470,7 +517,7 @@ function openPicker(field){
       <input class="input" id="pkland" placeholder="Landmark (optional), e.g. opposite Shoprite" autocomplete="off">
       <button class="btn" id="pkok" onclick="confirmPicker()">Confirm ${title.toLowerCase()}</button></div>`;
   $('#phone').appendChild(el);
-  const api=MAPMODE==='google'?gAdapter($('#pkmap')):lAdapter($('#pkmap'));
+  const api=mkAdapter($('#pkmap'));
   PK={field,api,addr:null,ll:start,t:null}; api.view(start,17); if(S.loc) api.user(S.loc);
   requestAnimationFrame(()=>{ api.resize(); api.view(start,17); });
   const upd=()=>{ const c=api.center(); PK.ll=c; $('#pkaddr').textContent='Finding address…'; el.classList.remove('moving'); clearTimeout(PK.t);
@@ -766,13 +813,15 @@ const clock=d=>d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hou
 function logT(text){ const T=S.track; if(!T) return; T.log.unshift({at:clock(new Date()),text}); T.log=T.log.slice(0,8); }
 const STAGES=['Pickup','On the way','Almost there','Arrived'];
 const stageOf=t=>t>=1?3:t>=0.88?2:t>=0.1?1:0;
-const etaText = () => { const T=S.track,t=trip(T.tripId); const m=Math.round((1-T.t)*tMins(t)); return T.arrived?'Arrived':(m<=1?'Arriving now':dur(m)+' left'); };
+const realOf=t=>{ const sp=MAPS[mapKey(tripPlaces(t))+'|live']; return sp&&sp.real||null; };
+const tripKm=t=>(realOf(t)||{}).km||tKm(t), tripMin=t=>(realOf(t)||{}).mins||tMins(t);
+const etaText = () => { const T=S.track,t=trip(T.tripId); const m=Math.round((1-T.t)*tripMin(t)); return T.arrived?'Arrived':(m<=1?'Arriving now':dur(m)+' left'); };
 function liveHead(){ const T=S.track,t=trip(T.tripId),drv=T.role==='driver',dn=esc(t.driver.split(' ')[0]),to=esc(t.to.split(' · ').pop()),from=esc(t.from.split(' · ').pop()),st=T.arrived?3:stageOf(T.t), atPick=T.t>=0.06&&T.t<0.1;
   const h = T.arrived ? (drv?'Trip finished':'You have arrived at '+to)
     : st===0 ? (atPick?(drv?'You are at the pickup in '+from:dn+' is at the pickup. Show your code.'):(drv?'Head to the pickup in '+from:dn+' is coming to pick you up'))
     : st===1 ? (drv?'Driving to '+to:'On the way to '+to) : (drv?'Almost at '+to:'Almost at '+to);
   return `<div class="lhead">${h}</div><div class="steps">${STAGES.map((n,i)=>`<div class="st ${i<st?'done':i===st?'now':''}"><i></i><span>${n}</span></div>`).join('')}</div>`; }
-function liveStats(){ const T=S.track,t=trip(T.tripId), left=Math.max(0,(1-T.t)*tKm(t)), mins=Math.round((1-T.t)*tMins(t));
+function liveStats(){ const T=S.track,t=trip(T.tripId), left=Math.max(0,(1-T.t)*tripKm(t)), mins=Math.round((1-T.t)*tripMin(t));
   const at=T.arrived?'Arrived':clock(new Date(Date.now()+mins*60000)), now=T.arrived?esc(t.to.split(' · ').pop()):(T.area||'On route').replace(/^Near /,'');
   return `<div><b>${at}</b><span>${T.arrived?'Status':'Arrive by'}</span></div><div><b>${left<1?Math.round(left*1000)+' m':left.toFixed(1)+' km'}</b><span>Left to go</span></div><div><b>${esc(now)}</b><span>${T.arrived?'At':'Now near'}</span></div>`; }
 const liveLog=()=>S.track.log.slice(0,5).map(e=>`<div class="ev"><span>${e.at}</span><p>${esc(e.text)}</p></div>`).join('');

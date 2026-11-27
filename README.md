@@ -8,7 +8,7 @@ Plain HTML, CSS and JavaScript. No build step.
 
 ## Files
 - index.html  markup and the device-preview frame
-- config.js   settings (Google Maps key)
+- config.js   settings (Mapbox token)
 - assets/     logo files (transparent PNG; white versions for green backgrounds)
 - sw.js       service worker (offline + install)
 - manifest.webmanifest  app details for installing
@@ -18,13 +18,13 @@ Plain HTML, CSS and JavaScript. No build step.
 Fake data lives at the top of app.js (S.trips, S.offers, S.bookings, S.incoming, S.earn).
 
 ## Maps and location
-- Maps use the free Google Maps embed (no key, no card). It knows Abuja streets and draws real road routes.
-- Live trip tracking uses an OpenStreetMap map so the car and your position can move on it.
+- Maps run on Mapbox: put the public token (pk.…) in config.js. Mapbox draws every map, finds places and streets in Abuja, gives real driving routes and travel times, and powers live trip tracking.
+- With no token the app falls back to a free map, so nothing breaks.
 - "Open route in Google Maps", "Navigate with Google Maps" and "Directions to pickup" open the Google Maps app (free).
 - "Choose on map" lets people put a pin on their exact gate and add a landmark.
 - From is filled with your current location when the phone's location is precise.
 - Location only works on https (Vercel) or http://localhost (Live Server), not when you double-click index.html.
-- Optional: put a Google key in config.js to switch everything (search, live map) to the Google Maps JavaScript API.
+- Mapbox free tier: 50,000 web map loads, 100,000 searches and 100,000 routes a month. Set a usage alert on the Mapbox account.
   Enable Maps JavaScript API, Routes API, Places API (New) and Geocoding API. Google needs a billing account for this.
 - Where a page may not load maps (for example the shared preview link), the app falls back to a drawn map.
 
